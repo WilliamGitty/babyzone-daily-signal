@@ -359,7 +359,13 @@ def run_claude(system_prompt: str, feed_text: str) -> tuple[dict, dict]:
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=16000,
+        # Found live: 16000 truncated a real response mid-string (json.loads
+        # failed on an unterminated string) once every funding-opportunity
+        # item started requiring a mandatory Action line - output length grew
+        # past the old cap. 24000 gives real headroom above the largest
+        # observed usage (12280 output tokens) without raising typical spend,
+        # since Claude stops once its JSON is complete regardless of the cap.
+        max_tokens=24000,
         system=system_prompt,
         thinking={"type": "adaptive"},
         output_config={
