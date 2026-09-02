@@ -357,7 +357,13 @@ def run_claude(system_prompt: str, feed_text: str) -> tuple[dict, dict]:
     )
     messages = [{"role": "user", "content": user_message}]
 
-    response = client.messages.create(
+    # Streaming required: the SDK refuses non-streaming requests above a
+    # max_tokens threshold it estimates could run past 10 minutes (found
+    # live - raising max_tokens 16000->24000 to fix a truncation bug
+    # immediately hit this separate SDK-side guard). Streamed, then
+    # reassembled into the same final-message shape .create() would have
+    # returned, so the rest of this function is unchanged.
+    with client.messages.stream(
         model=MODEL,
         # Found live: 16000 truncated a real response mid-string (json.loads
         # failed on an unterminated string) once every funding-opportunity
@@ -373,7 +379,8 @@ def run_claude(system_prompt: str, feed_text: str) -> tuple[dict, dict]:
             "format": {"type": "json_schema", "schema": ITEMS_SCHEMA},
         },
         messages=messages,
-    )
+    ) as stream:
+        response = stream.get_final_message()
     usage = {
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
