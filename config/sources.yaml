@@ -6,6 +6,14 @@
 # GrantNav all block direct fetches or publish empty/broken feeds — covered instead via
 # Google News RSS search below, verified live the same way).
 #
+# Extended 2026-09-02 (cost-conscious pass): DHSC and Children's Commissioner for
+# England added as genuine direct-feed gaps (both verified live, clean 12-20 item
+# feeds). One new Google News query added ("Best Start in Life" family hubs). UK
+# Parliament committee feeds, APPG on Family Hubs, Nesta, 1001 Critical Days
+# Foundation, Royal Foundation Centre for Early Childhood, an LGA Google News
+# fallback, and three other candidate search queries were all tested live and
+# dropped — see updated notes below.
+#
 # To add a feed: add an entry here and push — no code change needed, next scheduled
 # run picks it up automatically.
 
@@ -26,6 +34,9 @@ feeds:
   - name: "Government Office for Science"
     url: https://www.gov.uk/government/organisations/government-office-for-science.atom
     section_hint: research
+  - name: DHSC
+    url: https://www.gov.uk/government/organisations/department-of-health-and-social-care.atom
+    section_hint: policy
 
   # --- GOV.UK official Search API, verified live (q= genuinely filters
   # server-side; order=-public_timestamp was tested and found to SILENTLY
@@ -85,6 +96,9 @@ feeds:
   - name: "Joseph Rowntree Foundation"
     url: https://www.jrf.org.uk/rss.xml
     section_hint: research
+  - name: "Children's Commissioner for England"
+    url: https://www.childrenscommissioner.gov.uk/feed/
+    section_hint: policy
 
   # --- Think tanks / research bodies with working direct feeds ---
   - name: "Centre for Social Justice"
@@ -169,6 +183,9 @@ feeds:
   - name: "Google News: international early years policy"
     url: "https://news.google.com/rss/search?q=%22early+years%22+OR+%22early+childhood%22+policy+international+when:5d&hl=en-GB&gl=GB&ceid=GB:en"
     section_hint: global
+  - name: "Google News: Best Start in Life family hubs"
+    url: "https://news.google.com/rss/search?q=%22Best+Start+in+Life%22+family+hubs+when:14d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: policy
 
 # User-Agent used for every feed fetch — several GOV.UK/trade sites block
 # default/non-browser clients (confirmed live: Third Sector, LGA, IFS,
@@ -217,3 +234,48 @@ max_items_per_feed: 6
 #   - "Corporate CSR early years partnership" and "local authority
 #     commissioning family services" Google News queries: both tested,
 #     both returned mostly irrelevant noise or zero results — dropped.
+#
+# Additional sources tested live 2026-09-02 and dropped:
+#   - UK Parliament committees (Education Committee, Work and Pensions
+#     Committee): committees.parliament.uk publishes news.rss URLs but both
+#     return HTTP 403 with a Cloudflare "Just a moment..." bot-check page,
+#     with or without a browser User-Agent — blocked at the edge, not a
+#     missing feed. No usable Google News substitute found either (queries
+#     for the committees by name returned unrelated general education/DWP
+#     news, not committee-specific activity) — dropped rather than shipped
+#     imprecise.
+#   - APPG on Family Hubs: no dedicated website with its own feed found
+#     (appgfamilyhubs.org.uk does not resolve). A Google News query for
+#     "APPG" + "family hubs" returned essentially nothing on-topic (1 hit,
+#     unrelated) even at when:90d — confirms APPGs generally have no
+#     monitorable feed, as flagged in the brief. Dropped.
+#   - Nesta (nesta.org.uk/feed/ and variants): HTTP 404, no RSS feed
+#     discoverable anywhere on the site (only a Facebook share-dialog URL
+#     spuriously matches "feed" in the HTML). Dropped.
+#   - 1001 Critical Days Foundation (1001criticaldays.co.uk/feed/): HTTP 404
+#     (redirects to 301 then a broken feed path). No RSS feed found. Dropped.
+#   - Royal Foundation Centre for Early Childhood
+#     (centreforearlychildhood.org/feed/): resolves but redirects (301) back
+#     to the plain homepage rather than serving a feed — no real RSS feed
+#     exists. Dropped.
+#   - LGA (local.gov.uk) Google News fallback, same site: technique used
+#     for Third Sector/Civil Society News: tested at both q=site:local.gov.uk
+#     and a tighter "early years"-scoped variant — both return generic
+#     evergreen listing-page titles ("News - local.gov.uk", "Case studies -
+#     local.gov.uk", "Publications - local.gov.uk") rather than real dated
+#     articles, even with when:7d/30d. Unlike Third Sector/Civil Society
+#     News, local.gov.uk's Google indexing doesn't surface individual
+#     article pages this way — dropped as noisy/non-functional, LGA remains
+#     uncovered.
+#   - Google News: "parental confidence" OR "parental self-efficacy" early
+#     years UK: 0 results even at when:30d — dropped.
+#   - Google News: "home learning environment" early years: only 3 thin,
+#     largely irrelevant results at when:30d (an archive reprint, a
+#     ministerial-appointment story) — dropped.
+#   - Google News: perinatal mental health UK: returns real volume but
+#     dominated by non-UK (US/Australia) generic postpartum-PTSD human-
+#     interest pieces rather than UK policy/funding-relevant stories even
+#     with "UK" in the query — dropped as too noisy for a daily feed.
+#   - Google News: executive function early years child development: badly
+#     noisy — genuine child-development hits interleaved with unrelated
+#     watch/car-parts spam sites — dropped.
