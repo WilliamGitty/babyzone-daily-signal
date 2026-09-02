@@ -1,0 +1,219 @@
+# RSS/Atom feeds fetched directly by generate.py (no AI judgment involved in fetching).
+# Every source below was live-tested (curl + feedparser) on 2026-09-02 before being
+# added — see the build session notes for the full list of what was tried and dropped
+# (Third Sector, Civil Society News, LGA, IFS, Nursery World, CYP Now, AKO Foundation,
+# Henry Smith, City Bridge Foundation, National Lottery Community Fund, EPI, NPC, and
+# GrantNav all block direct fetches or publish empty/broken feeds — covered instead via
+# Google News RSS search below, verified live the same way).
+#
+# To add a feed: add an entry here and push — no code change needed, next scheduled
+# run picks it up automatically.
+
+feeds:
+  # --- GOV.UK department Atom feeds (all verified live, 20 entries each) ---
+  - name: DfE
+    url: https://www.gov.uk/government/organisations/department-for-education.atom
+    section_hint: policy
+  - name: DWP
+    url: https://www.gov.uk/government/organisations/department-for-work-pensions.atom
+    section_hint: policy
+  - name: MHCLG
+    url: https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government.atom
+    section_hint: policy
+  - name: Cabinet Office
+    url: https://www.gov.uk/government/organisations/cabinet-office.atom
+    section_hint: policy
+  - name: "Government Office for Science"
+    url: https://www.gov.uk/government/organisations/government-office-for-science.atom
+    section_hint: research
+
+  # --- GOV.UK official Search API, verified live (q= genuinely filters
+  # server-side; order=-public_timestamp was tested and found to SILENTLY
+  # BREAK the q= filter entirely — same "parameter looks like it should
+  # combine but doesn't" trap the Agilisys build hit with Contracts
+  # Finder's keyword param. Do not add &order= to these. Relevance-ranked
+  # results include a long tail of old evergreen guidance pages; the
+  # mechanical Python-side FEED_LOOKBACK_HOURS cutoff (via public_timestamp)
+  # handles recency instead, same pattern as Google News' when: trick below. ---
+  - name: "GOV.UK search: family hubs"
+    url: "https://www.gov.uk/api/search.json?q=family+hubs&count=20"
+    type: govuk_search
+    section_hint: policy
+  - name: "GOV.UK search: early years"
+    url: "https://www.gov.uk/api/search.json?q=early+years&count=20"
+    type: govuk_search
+    section_hint: policy
+  - name: "GOV.UK search: child poverty strategy"
+    url: "https://www.gov.uk/api/search.json?q=child+poverty+strategy&count=20"
+    type: govuk_search
+    section_hint: policy
+  - name: "GOV.UK search: school readiness"
+    url: "https://www.gov.uk/api/search.json?q=school+readiness&count=20"
+    type: govuk_search
+    section_hint: policy
+
+  # --- Find a Grant (find-government-grants.service.gov.uk) — verified live.
+  # searchTerm genuinely filters server-side (0 results for a nonsense
+  # query, 10 for a real one — checked, unlike GOV.UK's broken keywords=
+  # param above). NOTE: this uses an undocumented internal Next.js
+  # "_next/data/<build-id>/grants.json" route, not a published public API.
+  # The build id changes on their next deploy and the URL below WILL start
+  # 404ing at that point — confirmed live that a wrong build id fails
+  # cleanly with a 404 (not silent garbage), so this shows up as a normal
+  # "failed" source in metrics/logs rather than corrupting output. Needs
+  # periodic manual re-verification of the build id (visible in any
+  # find-government-grants.service.gov.uk page's <script src> paths). ---
+  - name: "Find a Grant: early years"
+    url: "https://find-government-grants.service.gov.uk/_next/data/FTWhBBOb5sBs97tTvdHHP/grants.json?searchTerm=early+years"
+    type: find_a_grant
+    section_hint: funding
+  - name: "Find a Grant: children and families"
+    url: "https://find-government-grants.service.gov.uk/_next/data/FTWhBBOb5sBs97tTvdHHP/grants.json?searchTerm=children+and+families"
+    type: find_a_grant
+    section_hint: funding
+
+  # --- Named funders/foundations with genuinely working direct feeds ---
+  - name: "BBC Children in Need"
+    url: https://www.bbcchildreninneed.co.uk/feed/
+    section_hint: funding
+  - name: "Nuffield Foundation"
+    url: https://www.nuffieldfoundation.org/feed
+    section_hint: research
+  - name: "Resolution Foundation"
+    url: https://www.resolutionfoundation.org/feed/
+    section_hint: research
+  - name: "Joseph Rowntree Foundation"
+    url: https://www.jrf.org.uk/rss.xml
+    section_hint: research
+
+  # --- Think tanks / research bodies with working direct feeds ---
+  - name: "Centre for Social Justice"
+    url: https://www.centreforsocialjustice.org.uk/feed
+    section_hint: research
+  - name: "The Money Charity"
+    url: https://themoneycharity.org.uk/feed/
+    section_hint: partner
+
+  # --- Comparable/adjacent organisations (place-based expansion signal) ---
+  - name: "OnSide Youth Zones"
+    url: https://www.onsideyouthzones.org/feed/
+    section_hint: expansion
+  - name: "Home-Start UK"
+    url: "https://www.home-start.org.uk/handlers/rss.ashx?feed=1"
+    section_hint: partner
+
+  # --- Google News RSS search — proven fallback for sources that block
+  # direct fetches (Third Sector, Civil Society News, Nursery World, CYP
+  # Now, LGA, IFS, EPI, NPC, AKO Foundation, Henry Smith, City Bridge
+  # Foundation, National Lottery Community Fund all 403/404/empty-feed on
+  # direct fetch — verified live) or have no feed at all. Every query below
+  # was tested live and kept only if it returned genuinely on-topic UK
+  # results; several tested queries were dropped for returning noise or
+  # zero results even with a wide when: window (see build session notes) —
+  # notably a bare "Baby Buddy" query, "corporate CSR early years
+  # partnership", and "local authority commissioning family services" all
+  # returned mostly irrelevant results and were cut rather than shipped.
+  #
+  # `when:Xd` forces genuinely recent results (Google ranks by relevance,
+  # not date, by default — a plain query can return zero items inside a
+  # tight freshness window even with 20+ entries, verified live for several
+  # queries below). Freshness windows here are set wide enough that Google
+  # doesn't itself return zero; the real recency filtering happens
+  # mechanically downstream via FEED_LOOKBACK_HOURS, same pattern as the
+  # GOV.UK search API above.
+  - name: "Google News: Third Sector"
+    url: "https://news.google.com/rss/search?q=site:thirdsector.co.uk+when:3d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: behind_headlines
+  - name: "Google News: Civil Society News"
+    url: "https://news.google.com/rss/search?q=site:civilsociety.co.uk+when:3d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: behind_headlines
+  - name: "Google News: Nursery World"
+    url: "https://news.google.com/rss/search?q=site:nurseryworld.co.uk+when:3d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: behind_headlines
+  - name: "Google News: CYP Now"
+    url: "https://news.google.com/rss/search?q=site:cypnow.co.uk+when:7d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: behind_headlines
+  - name: "Google News: Family Hubs"
+    url: "https://news.google.com/rss/search?q=%22family+hubs%22+when:2d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: policy
+  - name: "Google News: child poverty strategy UK"
+    url: "https://news.google.com/rss/search?q=%22child+poverty%22+strategy+UK+when:5d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: policy
+  - name: "Google News: Ofsted nursery"
+    url: "https://news.google.com/rss/search?q=Ofsted+nursery+chains+when:5d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: behind_headlines
+  - name: "Google News: health visiting service UK"
+    url: "https://news.google.com/rss/search?q=%22health+visiting%22+service+UK+council+when:14d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: partner
+  - name: "Google News: digital red book / child health record"
+    url: "https://news.google.com/rss/search?q=%22digital+red+book%22+OR+%22personal+child+health+record%22+when:60d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: digital
+  - name: "Google News: child development research UK universities"
+    url: "https://news.google.com/rss/search?q=%22child+development%22+research+(Oxford+OR+Cambridge+OR+Bristol)+when:30d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: research
+  - name: "Google News: AKO Foundation"
+    url: "https://news.google.com/rss/search?q=%22AKO+Foundation%22+when:60d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: funding
+  - name: "Google News: City Bridge Foundation"
+    url: "https://news.google.com/rss/search?q=%22City+Bridge+Foundation%22+when:14d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: funding
+  - name: "Google News: Henry Smith Charity"
+    url: "https://news.google.com/rss/search?q=%22Henry+Smith+Charity%22+when:14d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: funding
+  - name: "Google News: National Lottery Community Fund early years"
+    url: "https://news.google.com/rss/search?q=%22National+Lottery+Community+Fund%22+early+years+when:14d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: funding
+  - name: "Google News: Education Policy Institute"
+    url: "https://news.google.com/rss/search?q=%22Education+Policy+Institute%22+when:7d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: research
+  - name: "Google News: international early years policy"
+    url: "https://news.google.com/rss/search?q=%22early+years%22+OR+%22early+childhood%22+policy+international+when:5d&hl=en-GB&gl=GB&ceid=GB:en"
+    section_hint: global
+
+# User-Agent used for every feed fetch — several GOV.UK/trade sites block
+# default/non-browser clients (confirmed live: Third Sector, LGA, IFS,
+# Nursery World and CYP Now all return HTTP 403 to requests without a
+# browser-like User-Agent).
+user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+
+# Max items pulled from each feed per run. Kept modest since this runs
+# daily (not weekly) across 8 sections — Home-Start's feed alone returned
+# 948 entries in testing with no apparent per-request limit, so this cap
+# matters more here than it did for Agilisys's narrower source list.
+max_items_per_feed: 6
+
+# Dropped sources — logged here per the methodology's "don't silently skip"
+# instruction, not wired into feeds above:
+#   - 360Giving / GrantNav: registry moved to grantnav.threesixtygiving.org,
+#     which sits behind an active bot-check ("Verifying your browser",
+#     HTTP 503) that blocks server-side fetches entirely. No usable public
+#     API found. Worth re-checking manually in future — GrantNav's
+#     underlying CKAN data is genuinely valuable (real, current UK grant-
+#     making data), the blocker is purely the bot-check on this endpoint.
+#   - Third Sector, Civil Society News, LGA, IFS, Nursery World, CYP Now:
+#     all return HTTP 403 on direct RSS/feed fetch even with a browser
+#     User-Agent — covered instead via Google News site: search above.
+#   - AKO Foundation direct site (akofoundation.org): DNS resolves but the
+#     connection itself times out/refuses (HTTP 000) from this environment;
+#     may be geofenced or actively blocking non-browser clients. Covered
+#     via Google News search instead (also imprecise — see notes above;
+#     a wide when:60d window was needed just to get any real hits).
+#   - City Bridge Foundation, Henry Smith Charity, National Lottery
+#     Community Fund: modern JS-rendered sites with no discoverable RSS
+#     feed at all. Covered via Google News search instead.
+#   - Education Policy Institute (epi.org.uk/feed/), NPC/thinknpc.org
+#     (thinknpc.org/feed/): both return HTTP 200 with valid, well-formed
+#     but genuinely EMPTY RSS (zero <item> tags) — not a fetch failure,
+#     the feed itself has no content. Covered via Google News search
+#     (EPI only; NPC's name is too generic a search term to filter
+#     reliably and was dropped rather than shipped noisy).
+#   - Frameworks Institute: reachable (HTTP 200) but has no RSS feed and no
+#     good Google News query was found that returned recent, on-topic,
+#     precise results — dropped rather than shipped as a noisy source.
+#   - Bare "Baby Buddy" Google News query: too generic a phrase (matches
+#     unrelated obituaries, product reviews, Facebook posts) even scoped
+#     to when:90d — dropped. The "digital red book" query above is the
+#     verified working substitute for the Digital/Baby Buddy section.
+#   - "Corporate CSR early years partnership" and "local authority
+#     commissioning family services" Google News queries: both tested,
+#     both returned mostly irrelevant noise or zero results — dropped.
