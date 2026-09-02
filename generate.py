@@ -72,13 +72,9 @@ def estimated_cost(usage: dict) -> float:
 
 
 SECTION_TITLES = {
-    # Sector-news group (factual summary + "what this means for Babyzone"
-    # reaction paragraph — modelled on Babyzone's existing external weekly
-    # roundup, see config/prompt.md).
     "behind_headlines": "Behind the Headlines",
     "research": "Research & Insights",
     "global": "Global Perspectives",
-    # Funding-opportunity group (summary + why it matters + action).
     "funding": "Funding Opportunities",
     "policy": "Policy & Public-Sector Alignment",
     "expansion": "Expansion & Place-Based Opportunities",
@@ -86,11 +82,24 @@ SECTION_TITLES = {
     "digital": "Digital / Baby Buddy",
 }
 SECTION_ORDER = list(SECTION_TITLES.keys())
-# Sections using the sector-news "summary + reaction" style vs. the
-# funding-opportunity "summary + why it matters + action" style — the
-# renderer needs this to know which fields to display for each item.
-SECTOR_NEWS_SECTIONS = {"behind_headlines", "research", "global"}
 
+# Role titles Claude routes items to via the `owner` field — see
+# config/prompt.md's "One unified item format" section. Deliberately role
+# titles, not personal names, so the pipeline survives staff changes.
+OWNER_ROLES = [
+    "Fundraising lead",
+    "Policy & Impact lead",
+    "Baby Buddy owner",
+    "Expansion lead",
+    "Operations",
+    "Leadership",
+    "Monitor only - no owner needed",
+]
+URGENCY_LEVELS = ["immediate", "this_week", "monitor", "background"]
+
+# Every item, in every section, now shares one unified field set — no more
+# separate "sector-news" (summary + reaction) vs "funding-opportunity"
+# (summary + why_it_matters + action) styles. See config/prompt.md.
 ITEMS_SCHEMA = {
     "type": "object",
     "properties": {
@@ -100,11 +109,14 @@ ITEMS_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "section": {"type": "string", "enum": SECTION_ORDER},
+                    "category": {"type": "string"},
                     "headline": {"type": "string"},
                     "summary": {"type": "string"},
-                    "reaction": {"type": "string"},
                     "why_it_matters": {"type": "string"},
-                    "action": {"type": "string"},
+                    "suggested_action": {"type": "string"},
+                    "owner": {"type": "string", "enum": OWNER_ROLES},
+                    "urgency": {"type": "string", "enum": URGENCY_LEVELS},
+                    "top_action": {"type": "boolean"},
                     "relevance_rating": {"type": "integer"},
                     "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
                     "watchlist_hits": {"type": "array", "items": {"type": "string"}},
@@ -112,8 +124,9 @@ ITEMS_SCHEMA = {
                     "paywalled": {"type": "boolean"},
                 },
                 "required": [
-                    "section", "headline", "summary", "reaction", "why_it_matters",
-                    "action", "relevance_rating", "confidence", "watchlist_hits",
+                    "section", "category", "headline", "summary", "why_it_matters",
+                    "suggested_action", "owner", "urgency", "top_action",
+                    "relevance_rating", "confidence", "watchlist_hits",
                     "source_id", "paywalled",
                 ],
                 "additionalProperties": False,
@@ -406,7 +419,7 @@ def render_html(items: list[dict], date_str: str, updated_str: str = "") -> str:
             .replace('"', "&quot;")
         )
 
-    def render_item(item: dict, sector_news: bool) -> str:
+    def render_item(item: dict) -> str:
         stars = "★" * max(0, min(5, item.get("relevance_rating", 0)))
         watchlist = ", ".join(item.get("watchlist_hits") or [])
         watchlist_html = f'<p class="watchlist">Watchlist: {esc(watchlist)}</p>' if watchlist else ""
@@ -415,24 +428,19 @@ def render_html(items: list[dict], date_str: str, updated_str: str = "") -> str:
             'snippet only, full article requires a subscription.</p>'
             if item.get("paywalled") else ""
         )
-        if sector_news:
-            body_html = (
-                f'<p>{esc(item["summary"])}</p>'
-                f'<p class="reaction"><strong>What this means for Babyzone:</strong> {esc(item.get("reaction", ""))}</p>'
-            )
-        else:
-            action_html = (
-                f'<p class="action"><strong>Action:</strong> {esc(item["action"])}</p>'
-                if item.get("action") else ""
-            )
-            body_html = (
-                f'<p>{esc(item["summary"])}</p>'
-                f'<p class="why"><strong>Why it matters:</strong> {esc(item.get("why_it_matters", ""))}</p>'
-                f'{action_html}'
-            )
+        category_html = (
+            f'<span class="category">{esc(item["category"])}</span>' if item.get("category") else ""
+        )
+        body_html = (
+            f'<p>{esc(item["summary"])}</p>'
+            f'<p class="why"><strong>Why it matters to Babyzone:</strong> {esc(item.get("why_it_matters", ""))}</p>'
+            f'<p class="action"><strong>Suggested action:</strong> {esc(item.get("suggested_action", ""))}</p>'
+            f'<p class="meta"><strong>Owner:</strong> {esc(item.get("owner", ""))}'
+            f' &middot; <strong>Urgency:</strong> {esc(item.get("urgency", ""))}</p>'
+        )
         return f"""
         <div class="item" data-rating="{max(0, min(5, item.get('relevance_rating', 0)))}">
-          <h3>{esc(item['headline'])} <span class="rating" title="Relevance">{stars}</span>
+          <h3>{esc(item['headline'])} {category_html}<span class="rating" title="Relevance">{stars}</span>
             <span class="confidence confidence-{esc(item['confidence'])}">{esc(item['confidence'])}</span></h3>
           {body_html}
           {watchlist_html}
@@ -440,15 +448,25 @@ def render_html(items: list[dict], date_str: str, updated_str: str = "") -> str:
           <p class="source"><a href="{esc(item['source_url'])}" target="_blank" rel="noopener">{esc(item['source_name'])}</a>{f" &middot; Published {esc(item['source_published'])}" if item.get('source_published') else ""}</p>
         </div>"""
 
+    top_action_items = [i for i in items if i.get("top_action")]
+    if top_action_items:
+        top_rows = "".join(
+            f'<li><strong>{esc(i["headline"])}</strong> — {esc(i.get("suggested_action", ""))} '
+            f'<span class="owner">({esc(i.get("owner", ""))})</span></li>'
+            for i in top_action_items
+        )
+        top_actions_html = f'<section class="top-actions"><h2>Top actions today</h2><ul>{top_rows}</ul></section>'
+    else:
+        top_actions_html = '<section class="top-actions"><h2>Top actions today</h2><p class="empty">No urgent actions today.</p></section>'
+
     sections_html = []
     for section_key in SECTION_ORDER:
         section_items = by_section.get(section_key, [])
         title = SECTION_TITLES[section_key]
-        sector_news = section_key in SECTOR_NEWS_SECTIONS
         if not section_items:
             body = '<p class="empty">Nothing met the bar today.</p>'
         else:
-            body = "".join(render_item(i, sector_news) for i in section_items)
+            body = "".join(render_item(i) for i in section_items)
         sections_html.append(f'<section><h2>{esc(title)}</h2>{body}</section>')
 
     return f"""<!DOCTYPE html>
@@ -474,15 +492,19 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #c0392b
 .confidence-high {{ background: #d4edda; color: #155724; }}
 .confidence-medium {{ background: #fff3cd; color: #856404; }}
 .confidence-low {{ background: #f8d7da; color: #721c24; }}
-.reaction {{ font-style: italic; }}
+.category {{ font-size: 0.7em; color: #555; background: #eee; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }}
 .why {{ font-style: italic; }}
 .action {{ color: #c0392b; }}
+.meta {{ font-size: 0.85em; color: #444; }}
 .watchlist {{ font-size: 0.8em; color: #666; }}
 .source {{ font-size: 0.85em; }}
 .source a {{ color: #c0392b; }}
 .empty {{ color: #888; font-style: italic; }}
 .paywall {{ font-size: 0.78em; color: #92400e; background: #fff7ed; border: 1px solid #fde3c4; border-radius: 4px; padding: 4px 8px; display: inline-block; }}
 .intro {{ font-size: 0.85em; color: #555; font-style: italic; margin: 0 0 20px; }}
+.top-actions {{ background: #fff7f5; border: 1px solid #f3c6bd; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }}
+.top-actions h2 {{ border-bottom: none; padding-bottom: 0; margin-top: 0; }}
+.top-actions .owner {{ color: #666; font-size: 0.9em; }}
 </style>
 </head>
 <body>
@@ -490,7 +512,8 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #c0392b
   <h1>Babyzone Daily Signal <span class="badge">INTERNAL</span></h1>
   <p>{date_str}{f" &middot; Updated as of {esc(updated_str)}" if updated_str else ""} &middot; {len(items)} items</p>
 </header>
-<p class="intro">Automated daily digest for Babyzone's Research &amp; Impact and Fundraising teams, built from live UK government, funder, research-body, and sector-press sources. Claude reads that material each day, filters for genuine relevance to Babyzone's funding, policy, evidence, expansion, and family-support priorities, and no item is reviewed by a person before publishing. Internal use only — not a public-facing publication.</p>
+<p class="intro">Automated internal scan of live UK government, funder, research-body and sector-press sources. Items are AI-filtered for relevance to Babyzone's funding, policy, evidence, expansion and family-support priorities. Not human-reviewed before publication; verify before external use.</p>
+{top_actions_html}
 <main>
 {''.join(sections_html)}
 </main>
