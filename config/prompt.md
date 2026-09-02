@@ -165,6 +165,14 @@ of that timing, even if a higher-rated but non-time-sensitive item exists
 alongside it. Never flag more than 3. Do not flag an item just to reach 3 —
 zero or one is a completely normal, honest result on a quiet day.
 
+**`top_action` is only ever valid on a 4- or 5-rated item.** Never set
+`top_action: true` on an item with `relevance_rating` below 4, even if it
+feels urgent — urgency alone does not qualify an item for Top Actions
+without the relevance rating to back it up. (This is also enforced
+mechanically on the Python side as a safety net — see generate.py — but
+get it right here first: don't rely on the mechanical filter to catch a
+mistake you could avoid.)
+
 ## Anti-overclaiming rule about Babyzone's own operations (mandatory)
 You have no live access to Babyzone's actual current operational reality —
 only the background context given in this prompt. Never assert something as
