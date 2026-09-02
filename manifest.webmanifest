@@ -1,0 +1,15 @@
+{
+  "name": "Babyzone Daily Signal",
+  "short_name": "Babyzone Signal",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#c0392b",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "373x409",
+      "type": "image/png"
+    }
+  ]
+}

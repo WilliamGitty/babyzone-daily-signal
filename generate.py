@@ -444,6 +444,9 @@ def render_html(items: list[dict], date_str: str, updated_str: str = "") -> str:
 <meta charset="utf-8">
 <title>Babyzone Daily Signal — {date_str}</title>
 <meta name="theme-color" content="#c0392b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
 <style>
 body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #fafafa; }}
 header {{ border-bottom: 3px solid #c0392b; padding-bottom: 12px; margin-bottom: 24px; }}
