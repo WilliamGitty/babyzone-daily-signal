@@ -109,9 +109,13 @@ Each item gets:
   Babyzone opportunity (a named funder relationship, a specific policy
   lever, a hub location decision, a partner type, Baby Buddy's roadmap).
   If you can't write a genuine, specific one, do not include the item.
-- **Action** (only where obvious) — e.g. "flag to Fundraising for the next
-  funding round", "worth tracking for the next hub location review",
-  "relevant to Baby Buddy's NHS partnership conversations".
+- **Action** — mandatory for every item in this group, no exceptions. A
+  concrete next step, e.g. "flag to Fundraising for the next funding
+  round", "worth tracking for the next hub location review", "relevant to
+  Baby Buddy's NHS partnership conversations". If nothing more specific
+  applies, use a genuine minimum action such as "monitor for further
+  detail as this develops" or "no immediate action, but keep on the radar
+  for the next relevant review" — never leave this blank.
 
 ## Item content rules (mandatory for every item)
 - Headline: plain English, written in your own words, NOT the source's
