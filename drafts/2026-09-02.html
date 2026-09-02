@@ -3,17 +3,26 @@
 <head>
 <meta charset="utf-8">
 <title>Babyzone Daily Signal — 2026-09-02</title>
-<meta name="theme-color" content="#c0392b">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
+<meta name="theme-color" content="#212F5E">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.png">
+<link rel="apple-touch-icon" href="../icon.png">
 <style>
-body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #fafafa; }
-header { border-bottom: 3px solid #c0392b; padding-bottom: 12px; margin-bottom: 24px; }
-header h1 { margin: 0; font-size: 1.6em; }
-.badge { background: #c0392b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; vertical-align: middle; }
+body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #EEEEEE; }
+header { border-bottom: 3px solid #212F5E; padding-bottom: 12px; margin-bottom: 24px; }
+.header-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+.header-title { display: flex; align-items: center; gap: 12px; }
+.header-title img.logo { width: 52px; height: 52px; }
+header h1 { margin: 0; font-size: 1.6em; color: #212F5E; }
+.badge { background: #FF9C00; color: #212F5E; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; vertical-align: middle; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.header-actions button, .header-actions .archive-nav select {
+  font-family: inherit; font-size: 0.85em; border-radius: 6px; border: 1px solid #212F5E;
+  background: white; color: #212F5E; padding: 6px 10px; cursor: pointer;
+}
+.header-actions button:hover { background: #212F5E; color: white; }
 section { margin-bottom: 32px; }
-section h2 { border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #c0392b; }
+section h2 { border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E; }
 .item { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 .item h3 { margin: 0 0 8px 0; font-size: 1.05em; }
 .rating { color: #d4a017; font-size: 0.85em; }
@@ -23,92 +32,247 @@ section h2 { border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #c0392b;
 .confidence-low { background: #f8d7da; color: #721c24; }
 .category { font-size: 0.7em; color: #555; background: #eee; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
 .why { font-style: italic; }
-.action { color: #c0392b; }
+.action { color: #212F5E; }
 .meta { font-size: 0.85em; color: #444; }
 .watchlist { font-size: 0.8em; color: #666; }
 .source { font-size: 0.85em; }
-.source a { color: #c0392b; }
+.source a { color: #212F5E; }
 .empty { color: #888; font-style: italic; }
 .paywall { font-size: 0.78em; color: #92400e; background: #fff7ed; border: 1px solid #fde3c4; border-radius: 4px; padding: 4px 8px; display: inline-block; }
 .intro { font-size: 0.85em; color: #555; font-style: italic; margin: 0 0 20px; }
-.top-actions { background: #fff7f5; border: 1px solid #f3c6bd; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
-.top-actions h2 { border-bottom: none; padding-bottom: 0; margin-top: 0; }
-.top-actions .owner { color: #666; font-size: 0.9em; }
+.top-actions { background: white; border: 1px solid #FF9C00; border-left: 6px solid #FF9C00; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+.top-actions h2 { border-bottom: none; padding-bottom: 0; margin-top: 0; color: #212F5E; }
+.top-actions ul { list-style: none; margin: 0; padding: 0; }
+.top-action-item { padding: 10px 0; border-bottom: 1px solid #eee; }
+.top-action-item:last-child { border-bottom: none; }
+.top-action-item a { color: #212F5E; text-decoration: none; font-size: 1.02em; }
+.top-action-item a:hover { text-decoration: underline; }
+.top-action-item .why, .top-action-item .action { margin: 4px 0; font-size: 0.88em; }
+.top-actions .owner { color: #666; font-size: 0.85em; }
+.bookmark-row { margin: 8px 0 0; }
+.bookmark-btn {
+  font-family: inherit; font-size: 0.8em; border-radius: 6px; border: 1px solid #FF9C00;
+  background: white; color: #212F5E; padding: 4px 10px; cursor: pointer;
+}
+.bookmark-btn.is-bookmarked { background: #FF9C00; color: #212F5E; border-color: #FF9C00; font-weight: 600; }
+.bookmark-btn:hover { background: #ffe6b8; }
+.bookmarks-panel {
+  display: none; position: fixed; top: 0; right: 0; height: 100%; width: 320px; max-width: 88vw;
+  background: white; box-shadow: -2px 0 12px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto;
+  z-index: 100; box-sizing: border-box;
+}
+/* Author stylesheets beat the browser's UA [hidden] rule (display: none)
+   regardless of specificity - the .bookmarks-panel display rule above
+   would otherwise silently keep this panel visible even with the
+   `hidden` attribute set. See agilisys-build-methodology.md's
+   archive/navigation-pattern section for the twice-recurring bug this
+   fixes. */
+.bookmarks-panel[hidden] { display: none; }
+.bookmarks-panel.is-open { display: block; }
+.bookmarks-panel h2 { margin-top: 0; color: #212F5E; border-bottom: 1px solid #ccc; padding-bottom: 6px; }
+.bookmarks-panel ul { list-style: none; margin: 0; padding: 0; }
+.bookmarks-panel li { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
+.bookmarks-panel li a { color: #212F5E; font-size: 0.9em; }
+.bookmarks-panel .remove-bookmark {
+  font-family: inherit; font-size: 0.75em; border-radius: 5px; border: 1px solid #ccc;
+  background: #f5f5f5; color: #444; padding: 2px 8px; cursor: pointer; flex-shrink: 0;
+}
+.bookmarks-panel .empty { font-size: 0.9em; }
+.bookmarks-close {
+  font-family: inherit; font-size: 0.85em; border-radius: 6px; border: 1px solid #212F5E;
+  background: white; color: #212F5E; padding: 4px 10px; cursor: pointer; margin-bottom: 10px;
+}
+.archive-nav { font-size: 0.85em; color: #212F5E; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Babyzone Daily Signal <span class="badge">INTERNAL</span></h1>
-  <p>2026-09-02 &middot; Updated as of 15:01 BST &middot; 8 items</p>
+  <div class="header-top">
+    <div class="header-title">
+      <img class="logo" src="../icon.png" alt="Babyzone logo">
+      <div>
+        <h1>Babyzone Daily Signal <span class="badge">INTERNAL</span></h1>
+        <p>2026-09-02 &middot; Updated as of 15:38 BST &middot; 7 items</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" id="bookmarks-toggle" onclick="bzToggleBookmarksPanel()">★ Bookmarks</button>
+      <label class="archive-nav" for="archive-select">Previous editions: <select id="archive-select" onchange="if(this.value) window.location.href=this.value;"><option value="../index.html">Today (live)</option></select></label>
+    </div>
+  </div>
 </header>
+<aside id="bookmarks-panel" class="bookmarks-panel" hidden>
+  <button type="button" class="bookmarks-close" onclick="bzToggleBookmarksPanel()">Close</button>
+  <h2>Bookmarked items</h2>
+  <ul id="bookmarks-list"></ul>
+  <p id="bookmarks-empty" class="empty" hidden>No bookmarks yet — use the ☆ Bookmark button on any item.</p>
+</aside>
 <p class="intro">Automated internal scan of live UK government, funder, research-body and sector-press sources. Items are AI-filtered for relevance to Babyzone's funding, policy, evidence, expansion and family-support priorities. Not human-reviewed before publication; verify before external use.</p>
-<section class="top-actions"><h2>Top actions today</h2><ul><li><strong>BBC Children in Need announces first locations for new £15m child poverty programme</strong> — Fundraising lead should immediately research the programme's eligibility criteria, application process, and the full list of named locations to assess whether any current or planned Babyzone geographies align. If a relationship with BBC Children in Need does not already exist, this announcement is a strong prompt to initiate contact. Named locations should also be shared with the Expansion lead for cross-referencing against expansion priorities. <span class="owner">(Fundraising lead)</span></li><li><strong>Cross-party MPs urged to back new babies' law in Parliament on 4 September</strong> — Policy &amp; Impact lead should monitor the September 4 debate closely, noting the specific legislative provisions being proposed and the level of parliamentary support. Assess whether Babyzone's evidence base or relationships with supporting MPs or 1001 Critical Days advocates could contribute to the policy conversation. Flag any legislative progress to Leadership. <span class="owner">(Policy &amp; Impact lead)</span></li><li><strong>New EYFS framework with strengthened safer sleep rules now in force</strong> — Operations should confirm that hub practices, any baby-focused session content, and partner-delivered activities (e.g. infant feeding or baby health sessions) are compliant with the updated EYFS safer sleep requirements. Baby Buddy owner should check whether the app's guidance content needs updating to reflect the new framework. <span class="owner">(Operations)</span></li></ul></section>
+<section class="top-actions"><h2>Top actions today</h2><ul><li class="top-action-item"><a href="https://www.bbcchildreninneed.co.uk/2026/09/first-locations-announced-for-15-million-programme-supporting-communities-to-tackle-impact-of-child-poverty-in-the-uk/" target="_blank" rel="noopener"><strong>BBC Children in Need launches £15m Communities for Children programme with first UK locations named</strong></a><p class="why"><strong>Why it matters:</strong> BBC Children in Need is a named watchlist funder for Babyzone. This is a substantial, place-based, multi-year child poverty programme whose stated focus — communities tackling child poverty — closely matches Babyzone's hub model and target population. The scale (£1.5m per location over five years) is significant relative to Babyzone's per-hub running costs.</p><p class="action"><strong>Suggested action:</strong> Fundraising lead to identify the full list of announced locations and compare against Babyzone's current footprint and expansion priorities urgently. Research eligibility criteria and application process; if the programme is open to further locations, prepare an expression of interest. Flag to Leadership given strategic fit and size.</p><span class="owner">(Fundraising lead)</span></li><li class="top-action-item"><a href="https://news.google.com/rss/articles/CBMipAFBVV95cUxONG5abUowZ0ZveXJMSVJTN0JORnZoSzQteFRlTl9hY0tlZWdqU0JpMDZaQURmNm9xOWZhZnVnTXNja1JraEtWQllhYXdiUlRSdTloQXFjclVnLXF6Rkt0QUJkaXRKX2kxaFVuV0Y5R1FaVEN5VnBmNzV3bk9KRVFrUWhvTG9haVk1eDV0NWpVVFdRdlRpYUEwYTZhMG9FdU1NMU5idA?oc=5" target="_blank" rel="noopener"><strong>RCPCH signs agreement to explore a national digital personal child health record</strong></a><p class="why"><strong>Why it matters:</strong> This is directly in Baby Buddy's operational space: RCPCH-backed national digital child health record infrastructure could create both an integration opportunity and a partnership or positioning dynamic for an NHS-aligned parenting app. The Baby Buddy owner should assess whether this MoU opens a formal collaboration pathway.</p><p class="action"><strong>Suggested action:</strong> Baby Buddy owner to read the Digital Health report in full and assess whether Baby Buddy's content or engagement functionality could complement or integrate with an emerging national digital red book. Identify the lead parties within RCPCH and monitor for next steps beyond the MoU stage.</p><span class="owner">(Baby Buddy owner)</span></li><li class="top-action-item"><a href="https://news.google.com/rss/articles/CBMiakFVX3lxTE4wUWJZcW5aajNJQ0RidmpfclZEb0dmMl9wUlVQMWRaQWoyU1JzbWdPSXgzYWhoUGJLeE1ORjZvQkJFRXVZZkJ0Ny1FeTkxSEgyZ3VIZGZRdHB6WDJab1hkR0FXbW5Bck5ianfSAW9BVV95cUxOWFpLVE5aMlNtYW5oU2JzVEhmcG1BaU5yLXZ6Njk0OUY1SHcxcGZxSTRiclNLZWhqeHlSUkJIa2NtYlFKS3V6a193emlFZkdCaGk4VTdLbllLcDludVFjRUJwUEkxVjJsMjJOc0tLV2c?oc=5" target="_blank" rel="noopener"><strong>MPs urged to back 'best start in life' legislation in Parliament on 4 September</strong></a><p class="why"><strong>Why it matters:</strong> This is a live parliamentary moment directly aligned with Babyzone's early years mission and the 1001 critical days policy framework. A strengthened statutory duty around the earliest years could create new commissioning levers and narrative value for Babyzone's funding and policy positioning.</p><p class="action"><strong>Suggested action:</strong> Policy &amp; Impact lead to monitor the 4 September parliamentary proceedings closely. Assess whether Babyzone should position evidence or make contact with sympathetic MPs. Check whether the 1001 Critical Days Foundation is formally involved and whether there is an opportunity to contribute to any consultation that follows.</p><span class="owner">(Policy &amp; Impact lead)</span></li></ul></section>
 <main>
 <section><h2>Behind the Headlines</h2>
-        <div class="item" data-rating="4">
-          <h3>New EYFS framework with strengthened safer sleep rules now in force <span class="category">Regulatory update — EYFS framework</span><span class="rating" title="Relevance">★★★★</span>
+        <div class="item" data-rating="3">
+          <h3>Revised EYFS framework with strengthened safer sleep regulations now in force <span class="category">EYFS regulatory update</span><span class="rating" title="Relevance">★★★</span>
             <span class="confidence confidence-high">high</span></h3>
-          <p>A revised Early Years Foundation Stage (EYFS) framework has come into force, incorporating strengthened safer sleep regulations alongside other updates. The changes apply to all registered early years providers in England from the date of publication.</p><p class="why"><strong>Why it matters to Babyzone:</strong> Babyzone's hubs deliver early years provision and host sessions for families with babies; the new safer sleep requirements are directly operationally relevant and require providers to confirm compliance. It may also be worth checking whether Baby Buddy's content reflects the updated EYFS safer sleep guidance.</p><p class="action"><strong>Suggested action:</strong> Operations should confirm that hub practices, any baby-focused session content, and partner-delivered activities (e.g. infant feeding or baby health sessions) are compliant with the updated EYFS safer sleep requirements. Baby Buddy owner should check whether the app's guidance content needs updating to reflect the new framework.</p><p class="meta"><strong>Owner:</strong> Operations &middot; <strong>Urgency:</strong> immediate</p>
-          
+          <p>A revised Early Years Foundation Stage (EYFS) framework came into force on 1 September 2026, introducing strengthened statutory requirements on safer sleep practices alongside other updates to early years provision standards.</p><p class="why"><strong>Why it matters to Babyzone:</strong> Babyzone's hubs may be within scope of the EYFS framework depending on their registration status; Baby Buddy's safer sleep content may also need to be checked against revised statutory wording to ensure NHS alignment is maintained.</p><p class="action"><strong>Suggested action:</strong> Operations to review the updated EYFS framework and confirm whether any Babyzone hub activities fall within its regulatory scope. Baby Buddy owner to cross-check safer sleep guidance on the app against the new framework requirements.</p><p class="meta"><strong>Owner:</strong> Operations &middot; <strong>Urgency:</strong> this_week</p>
+          <p class="watchlist">Watchlist: Ofsted regulation of early years providers, Department for Education</p>
           
           <p class="source"><a href="https://news.google.com/rss/articles/CBMixAFBVV95cUxPeHFJMm95cm1PY2hvaU9CNHRfci05SU1pSXNieVhhLVNOelJnNkVXZzY1VmlpV3BtRDd2Zi1SZW5wck8zcm5XMURaWnBrTXlOZC1YUko3Z21UakI0YUdrbXRmanZiLXR4ZGs4emtxci1seDdpQnVNclZ3R2xDUEVHV3Y2NnVqcDYxMHp6dGI5Tko0cmhKVmh2eGtCUmFqZ0RaejBrbE1CN2hPR0RMNlBldHl4YkU1QUN4T0ROS25uSlU2a19z?oc=5" target="_blank" rel="noopener">Google News: Nursery World — Nursery World</a> &middot; Published 01 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::Revised EYFS framework with strengthened safer sleep regulations now in force::0" data-headline="Revised EYFS framework with strengthened safer sleep regulations now in force" data-url="https://news.google.com/rss/articles/CBMixAFBVV95cUxPeHFJMm95cm1PY2hvaU9CNHRfci05SU1pSXNieVhhLVNOelJnNkVXZzY1VmlpV3BtRDd2Zi1SZW5wck8zcm5XMURaWnBrTXlOZC1YUko3Z21UakI0YUdrbXRmanZiLXR4ZGs4emtxci1seDdpQnVNclZ3R2xDUEVHV3Y2NnVqcDYxMHp6dGI5Tko0cmhKVmh2eGtCUmFqZ0RaejBrbE1CN2hPR0RMNlBldHl4YkU1QUN4T0ROS25uSlU2a19z?oc=5" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
         </div>
         <div class="item" data-rating="3">
-          <h3>Free school meal expansion excludes private and voluntary early years settings, sector warns <span class="category">Early years policy — free school meals eligibility</span><span class="rating" title="Relevance">★★★</span>
+          <h3>Free school meals expansion excludes private and voluntary early years settings, raising disadvantage concerns <span class="category">Early years sector equity debate</span><span class="rating" title="Relevance">★★★</span>
             <span class="confidence confidence-medium">medium</span></h3>
-          <p>The government has expanded free school meal eligibility, but Nursery World reports that private, voluntary, and independent (PVI) early years settings are excluded from the expanded provision. Sector voices warn this risks embedding disadvantage for children in non-maintained settings.</p><p class="why"><strong>Why it matters to Babyzone:</strong> The PVI exclusion reinforces the policy argument that families in community-based, non-statutory settings face compounding disadvantage — a narrative directly relevant to Babyzone's advocacy case for barrier-free, community-led early years support outside statutory structures.</p><p class="action"><strong>Suggested action:</strong> Policy &amp; Impact lead should note this exclusion as potential evidence for Babyzone's policy narrative around the gaps left by statutory provision, and monitor for any government response to sector concerns that might open further advocacy opportunities.</p><p class="meta"><strong>Owner:</strong> Policy &amp; Impact lead &middot; <strong>Urgency:</strong> monitor</p>
-          
-          
-          <p class="source"><a href="https://news.google.com/rss/articles/CBMiywFBVV95cUxOeG1iMHV0ejM5Y3h1LWlkTTNMUmEwSkozUHIwT0NPMjd0QnEzUkk5M1d0blRvTHhQMWhETnkyRVZLbEdoY0RuQ1pER2hWRlNOQV94RnkydndlUFZLTVZFUkx4OXhoeHRlNF9VdFVjU0swODk2TmltUDFDX3VaSHRTWUk5XzdGdF9GcVRvMV9HLXhJY05TQkNuU2FKdEVIX0Z0dWxUeEpFWDNITTdobDJ5eUhmbk43elBYbTZPRDB0S0xQT2tVSk5aR2Fnaw?oc=5" target="_blank" rel="noopener">Google News: Nursery World — Nursery World</a> &middot; Published 01 September 2026</p>
-        </div></section><section><h2>Research &amp; Insights</h2><p class="empty">Nothing met the bar today.</p></section><section><h2>Global Perspectives</h2><p class="empty">Nothing met the bar today.</p></section><section><h2>Funding Opportunities</h2>
-        <div class="item" data-rating="5">
-          <h3>BBC Children in Need announces first locations for new £15m child poverty programme <span class="category">Major funder programme announcement</span><span class="rating" title="Relevance">★★★★★</span>
-            <span class="confidence confidence-high">high</span></h3>
-          <p>BBC Children in Need has announced the first locations for its £15 million Communities for Children programme, designed to support communities in tackling the impact of child poverty across the UK. Wishaw in Scotland is confirmed as one of four places receiving funding; the Wishaw allocation is reported as £1.5m over five years. Three further UK locations have also been named as part of this first wave.</p><p class="why"><strong>Why it matters to Babyzone:</strong> BBC Children in Need is a key watchlist funder and this programme — targeted explicitly at child poverty in communities — maps directly onto Babyzone's purpose and the families it serves. With roughly £1.5m per location over five years cited for at least one place, the programme is operating at a scale meaningfully above a single hub's annual running cost (~£125k–£130k) and worth urgent attention to understand eligibility and geography.</p><p class="action"><strong>Suggested action:</strong> Fundraising lead should immediately research the programme's eligibility criteria, application process, and the full list of named locations to assess whether any current or planned Babyzone geographies align. If a relationship with BBC Children in Need does not already exist, this announcement is a strong prompt to initiate contact. Named locations should also be shared with the Expansion lead for cross-referencing against expansion priorities.</p><p class="meta"><strong>Owner:</strong> Fundraising lead &middot; <strong>Urgency:</strong> this_week</p>
-          <p class="watchlist">Watchlist: BBC Children in Need</p>
-          
-          <p class="source"><a href="https://www.bbcchildreninneed.co.uk/2026/09/first-locations-announced-for-15-million-programme-supporting-communities-to-tackle-impact-of-child-poverty-in-the-uk/" target="_blank" rel="noopener">BBC Children in Need</a> &middot; Published 02 September 2026</p>
-        </div></section><section><h2>Policy &amp; Public-Sector Alignment</h2>
-        <div class="item" data-rating="4">
-          <h3>Cross-party MPs urged to back new babies' law in Parliament on 4 September <span class="category">Parliamentary advocacy — best start in life legislation</span><span class="rating" title="Relevance">★★★★</span>
-            <span class="confidence confidence-medium">medium</span></h3>
-          <p>Advocates and MPs are calling for parliamentary action on 4 September 2026 in support of a proposed new law to give babies the best start in life. Multiple MPs have been urged to use the occasion to back the legislation, with the Havant MP among those publicly supportive. The push is framed around the 1001 Critical Days and Best Start in Life agenda.</p><p class="why"><strong>Why it matters to Babyzone:</strong> A parliamentary push for legislation enshrining early support for babies sits directly in the policy environment that shapes Babyzone's commissioning and funding landscape. Any new statutory best-start obligations could influence LA commissioning priorities and open funding streams relevant to Babyzone's hub model and 0–5 focus.</p><p class="action"><strong>Suggested action:</strong> Policy &amp; Impact lead should monitor the September 4 debate closely, noting the specific legislative provisions being proposed and the level of parliamentary support. Assess whether Babyzone's evidence base or relationships with supporting MPs or 1001 Critical Days advocates could contribute to the policy conversation. Flag any legislative progress to Leadership.</p><p class="meta"><strong>Owner:</strong> Policy &amp; Impact lead &middot; <strong>Urgency:</strong> immediate</p>
-          
-          
-          <p class="source"><a href="https://news.google.com/rss/articles/CBMiakFVX3lxTE4wUWJZcW5aajNJQ0RidmpfclZEb0dmMl9wUlVQMWRaQWoyU1JzbWdPSXgzYWhoUGJLeE1ORjZvQkJFRXVZZkJ0Ny1FeTkxSEgyZ3VIZGZRdHB6WDJab1hkR0FXbW5Bck5ianfSAW9BVV95cUxOWFpLVE5aMlNtYW5oU2JzVEhmcG1BaU5yLXZ6Njk0OUY1SHcxcGZxSTRiclNLZWhqeHlSUkJIa2NtYlFKS3V6a193emlFZkdCaGk4VTdLbllLcDludVFjRUJwUEkxVjJsMjJOc0tLV2c?oc=5" target="_blank" rel="noopener">Google News: Family Hubs — LabourList</a> &middot; Published 02 September 2026</p>
-        </div>
-        <div class="item" data-rating="3">
-          <h3>Prime Minister launches three taskforces on cost of living and community regeneration <span class="category">Cross-government community investment signal</span><span class="rating" title="Relevance">★★★</span>
-            <span class="confidence confidence-high">high</span></h3>
-          <p>The Prime Minister has announced three new cross-government taskforces within a new Office of the Prime Minister and Cabinet, focused on cost of living, public control of essentials, and local community regeneration. No specific early years or family support funding has been announced alongside the initiative.</p><p class="why"><strong>Why it matters to Babyzone:</strong> The cost-of-living and community regeneration framing aligns with Babyzone's operating context — families under financial pressure in disadvantaged areas — and could signal future commissioning or grant streams relevant to community hubs, though no concrete early years implications are yet visible from this announcement.</p><p class="action"><strong>Suggested action:</strong> Leadership should monitor for any early years, family support, or community hub funding announcements that emerge from these taskforces. No action required now.</p><p class="meta"><strong>Owner:</strong> Leadership &middot; <strong>Urgency:</strong> monitor</p>
-          <p class="watchlist">Watchlist: Cabinet Office</p>
-          
-          <p class="source"><a href="https://www.gov.uk/government/news/prime-minister-puts-public-control-community-regeneration-and-cost-of-living-at-the-heart-of-plans-to-rewire-britain" target="_blank" rel="noopener">Cabinet Office</a> &middot; Published 02 September 2026</p>
-        </div></section><section><h2>Expansion &amp; Place-Based Opportunities</h2>
-        <div class="item" data-rating="2">
-          <h3>North Northamptonshire Council expands family hub network into Corby <span class="category">Local authority family hub opening</span><span class="rating" title="Relevance">★★</span>
-            <span class="confidence confidence-high">high</span></h3>
-          <p>North Northamptonshire Council has opened a new family hub in Corby, expanding its existing network. The new hub is designed to serve families across the Corby area.</p><p class="why"><strong>Why it matters to Babyzone:</strong> Corby has significant deprivation levels; active LA investment in family hub infrastructure there is a signal worth noting when assessing whether the North Northamptonshire area could be a candidate for future Babyzone presence or partnership. It may be worth exploring whether Babyzone has any current or planned interest in this geography.</p><p class="action"><strong>Suggested action:</strong> Expansion lead should note North Northamptonshire/Corby as an area of active LA family hub investment and consider whether it warrants inclusion in expansion horizon-scanning. No immediate action required.</p><p class="meta"><strong>Owner:</strong> Expansion lead &middot; <strong>Urgency:</strong> monitor</p>
-          
-          
-          <p class="source"><a href="https://news.google.com/rss/articles/CBMiyAFBVV95cUxQX2dLX1JhdlZtc0dhbFVYSjlWbFVROFFTUXJfbXIzeFRZa244a3k5dUVZS1VfTFBzcFhDbHNOc2FLYVhiOFg3X0Z0YTdwQTJ0Z1dtQURmSGVLOWp1bVBfeVFoN1ZxQWpuYTZxb0duS29TSWNoQVlrU3NZaG4yb3Y4WEh0a0drOHRJNTJQdWxvMFpkYi1Yd0VvNzlCQ1YtcXAzTWlRdjNhU0g4bzFYVVJWQmhzYWZOeEZfZFRrUFFUNXlkSVdkWjF2Yg?oc=5" target="_blank" rel="noopener">Google News: Family Hubs — Northamptonshire Telegraph</a> &middot; Published 01 September 2026</p>
-        </div>
-        <div class="item" data-rating="2">
-          <h3>DfE school-based nursery capital grant applications open with 30 September deadline <span class="category">DfE capital grant — school-based nursery expansion</span><span class="rating" title="Relevance">★★</span>
-            <span class="confidence confidence-high">high</span></h3>
-          <p>The Department for Education has opened the School-based Nursery Capital Grant 2027–2030 (phase 3), a local authority-led programme funding LAs to create or expand nursery provision within primary schools and maintained nursery schools in England. Individual providers cannot apply directly; LAs submit multi-year funding proposals. The deadline is 30 September 2026.</p><p class="why"><strong>Why it matters to Babyzone:</strong> While Babyzone cannot apply directly, this grant signals where LAs are actively expanding early years infrastructure. Understanding which LAs submit bids — particularly in areas of current or planned Babyzone interest — could inform expansion planning and help identify LAs with heightened early years investment appetite that might support partnership conversations.</p><p class="action"><strong>Suggested action:</strong> Expansion lead should note the 30 September deadline and consider reaching out to local authority contacts in areas of interest to understand whether they are bidding, and if so whether Babyzone's community hub model could complement the school-based provision being planned.</p><p class="meta"><strong>Owner:</strong> Expansion lead &middot; <strong>Urgency:</strong> this_week</p>
+          <p>The government has expanded free school meals eligibility, but private, voluntary and independent (PVI) early years settings remain excluded. Sector voices in Nursery World argue the exclusion risks embedding disadvantage for the youngest children in non-school-based provision.</p><p class="why"><strong>Why it matters to Babyzone:</strong> The PVI exclusion argument is directly relevant to Babyzone's policy advocacy position as a non-statutory community provider — the case that disadvantaged under-fives in community settings miss out on entitlements available in school settings mirrors the equity gap Babyzone's hubs are designed to address.</p><p class="action"><strong>Suggested action:</strong> Policy &amp; Impact lead to note this as potential evidence for funding narratives and policy advocacy about the gap in reach to disadvantaged families outside statutory provision. Monitor for government response to sector pressure.</p><p class="meta"><strong>Owner:</strong> Policy &amp; Impact lead &middot; <strong>Urgency:</strong> monitor</p>
           <p class="watchlist">Watchlist: Department for Education</p>
           
-          <p class="source"><a href="https://find-government-grants.service.gov.uk/grants/school-based-nursery-capital-grant-2027-to-2030-1" target="_blank" rel="noopener">Find a Grant: early years</a></p>
+          <p class="source"><a href="https://news.google.com/rss/articles/CBMiywFBVV95cUxOeG1iMHV0ejM5Y3h1LWlkTTNMUmEwSkozUHIwT0NPMjd0QnEzUkk5M1d0blRvTHhQMWhETnkyRVZLbEdoY0RuQ1pER2hWRlNOQV94RnkydndlUFZLTVZFUkx4OXhoeHRlNF9VdFVjU0swODk2TmltUDFDX3VaSHRTWUk5XzdGdF9GcVRvMV9HLXhJY05TQkNuU2FKdEVIX0Z0dWxUeEpFWDNITTdobDJ5eUhmbk43elBYbTZPRDB0S0xQT2tVSk5aR2Fnaw?oc=5" target="_blank" rel="noopener">Google News: Nursery World — Nursery World</a> &middot; Published 01 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::Free school meals expansion excludes private and voluntary early years settings, raising disadvantage concerns::1" data-headline="Free school meals expansion excludes private and voluntary early years settings, raising disadvantage concerns" data-url="https://news.google.com/rss/articles/CBMiywFBVV95cUxOeG1iMHV0ejM5Y3h1LWlkTTNMUmEwSkozUHIwT0NPMjd0QnEzUkk5M1d0blRvTHhQMWhETnkyRVZLbEdoY0RuQ1pER2hWRlNOQV94RnkydndlUFZLTVZFUkx4OXhoeHRlNF9VdFVjU0swODk2TmltUDFDX3VaSHRTWUk5XzdGdF9GcVRvMV9HLXhJY05TQkNuU2FKdEVIX0Z0dWxUeEpFWDNITTdobDJ5eUhmbk43elBYbTZPRDB0S0xQT2tVSk5aR2Fnaw?oc=5" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
+        </div></section><section><h2>Research &amp; Insights</h2><p class="empty">Nothing met the bar today.</p></section><section><h2>Global Perspectives</h2><p class="empty">Nothing met the bar today.</p></section><section><h2>Funding Opportunities</h2>
+        <div class="item" data-rating="5">
+          <h3>BBC Children in Need launches £15m Communities for Children programme with first UK locations named <span class="category">Trust/foundation funding round</span><span class="rating" title="Relevance">★★★★★</span>
+            <span class="confidence confidence-high">high</span></h3>
+          <p>BBC Children in Need has announced the first locations for a £15 million 'Communities for Children' programme aimed at tackling the impacts of child poverty across the UK. Four UK places have been named, each receiving approximately £1.5m over five years; Wishaw in Scotland is among those confirmed so far.</p><p class="why"><strong>Why it matters to Babyzone:</strong> BBC Children in Need is a named watchlist funder for Babyzone. This is a substantial, place-based, multi-year child poverty programme whose stated focus — communities tackling child poverty — closely matches Babyzone's hub model and target population. The scale (£1.5m per location over five years) is significant relative to Babyzone's per-hub running costs.</p><p class="action"><strong>Suggested action:</strong> Fundraising lead to identify the full list of announced locations and compare against Babyzone's current footprint and expansion priorities urgently. Research eligibility criteria and application process; if the programme is open to further locations, prepare an expression of interest. Flag to Leadership given strategic fit and size.</p><p class="meta"><strong>Owner:</strong> Fundraising lead &middot; <strong>Urgency:</strong> this_week</p>
+          <p class="watchlist">Watchlist: BBC Children in Need, child poverty strategy</p>
+          
+          <p class="source"><a href="https://www.bbcchildreninneed.co.uk/2026/09/first-locations-announced-for-15-million-programme-supporting-communities-to-tackle-impact-of-child-poverty-in-the-uk/" target="_blank" rel="noopener">BBC Children in Need</a> &middot; Published 02 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::BBC Children in Need launches £15m Communities for Children programme with first UK locations named::2" data-headline="BBC Children in Need launches £15m Communities for Children programme with first UK locations named" data-url="https://www.bbcchildreninneed.co.uk/2026/09/first-locations-announced-for-15-million-programme-supporting-communities-to-tackle-impact-of-child-poverty-in-the-uk/" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
+        </div></section><section><h2>Policy &amp; Public-Sector Alignment</h2>
+        <div class="item" data-rating="4">
+          <h3>MPs urged to back 'best start in life' legislation in Parliament on 4 September <span class="category">Parliamentary early years debate</span><span class="rating" title="Relevance">★★★★</span>
+            <span class="confidence confidence-medium">medium</span></h3>
+          <p>A cross-party push is calling on MPs to support proposed legislation that would give babies a statutory voice in Parliament, framed around securing the best start in life from the earliest days. MPs including Havant's Alan Mak have publicly backed the initiative, with parliamentary proceedings expected on 4 September.</p><p class="why"><strong>Why it matters to Babyzone:</strong> This is a live parliamentary moment directly aligned with Babyzone's early years mission and the 1001 critical days policy framework. A strengthened statutory duty around the earliest years could create new commissioning levers and narrative value for Babyzone's funding and policy positioning.</p><p class="action"><strong>Suggested action:</strong> Policy &amp; Impact lead to monitor the 4 September parliamentary proceedings closely. Assess whether Babyzone should position evidence or make contact with sympathetic MPs. Check whether the 1001 Critical Days Foundation is formally involved and whether there is an opportunity to contribute to any consultation that follows.</p><p class="meta"><strong>Owner:</strong> Policy &amp; Impact lead &middot; <strong>Urgency:</strong> immediate</p>
+          <p class="watchlist">Watchlist: 1001 Critical Days Foundation, Family Hubs / Best Start in Life</p>
+          
+          <p class="source"><a href="https://news.google.com/rss/articles/CBMiakFVX3lxTE4wUWJZcW5aajNJQ0RidmpfclZEb0dmMl9wUlVQMWRaQWoyU1JzbWdPSXgzYWhoUGJLeE1ORjZvQkJFRXVZZkJ0Ny1FeTkxSEgyZ3VIZGZRdHB6WDJab1hkR0FXbW5Bck5ianfSAW9BVV95cUxOWFpLVE5aMlNtYW5oU2JzVEhmcG1BaU5yLXZ6Njk0OUY1SHcxcGZxSTRiclNLZWhqeHlSUkJIa2NtYlFKS3V6a193emlFZkdCaGk4VTdLbllLcDludVFjRUJwUEkxVjJsMjJOc0tLV2c?oc=5" target="_blank" rel="noopener">Google News: Family Hubs — LabourList</a> &middot; Published 02 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::MPs urged to back 'best start in life' legislation in Parliament on 4 September::3" data-headline="MPs urged to back 'best start in life' legislation in Parliament on 4 September" data-url="https://news.google.com/rss/articles/CBMiakFVX3lxTE4wUWJZcW5aajNJQ0RidmpfclZEb0dmMl9wUlVQMWRaQWoyU1JzbWdPSXgzYWhoUGJLeE1ORjZvQkJFRXVZZkJ0Ny1FeTkxSEgyZ3VIZGZRdHB6WDJab1hkR0FXbW5Bck5ianfSAW9BVV95cUxOWFpLVE5aMlNtYW5oU2JzVEhmcG1BaU5yLXZ6Njk0OUY1SHcxcGZxSTRiclNLZWhqeHlSUkJIa2NtYlFKS3V6a193emlFZkdCaGk4VTdLbllLcDludVFjRUJwUEkxVjJsMjJOc0tLV2c?oc=5" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
+        </div>
+        <div class="item" data-rating="3">
+          <h3>PM announces community regeneration and cost-of-living taskforces as national priorities <span class="category">Cross-government community investment signal</span><span class="rating" title="Relevance">★★★</span>
+            <span class="confidence confidence-medium">medium</span></h3>
+          <p>The Prime Minister has launched three new cross-government taskforces within a newly formed Office of the Prime Minister &amp; Cabinet, covering public control of essentials, community regeneration, and the cost of living. The framing positions local community investment and systemic cost-of-living pressures as explicit government priorities.</p><p class="why"><strong>Why it matters to Babyzone:</strong> A dedicated community regeneration taskforce alongside cost-of-living as an explicit cross-government priority could precede new commissioning frameworks or place-based funding mechanisms — both areas where Babyzone's hub model in disadvantaged communities could qualify for support.</p><p class="action"><strong>Suggested action:</strong> No immediate action; Leadership to monitor for any resulting commissioning programmes, grant streams, or place-based initiatives flowing from these taskforces that could create hub-funding or partnership opportunities.</p><p class="meta"><strong>Owner:</strong> Leadership &middot; <strong>Urgency:</strong> monitor</p>
+          <p class="watchlist">Watchlist: Cabinet Office, child poverty strategy</p>
+          
+          <p class="source"><a href="https://www.gov.uk/government/news/prime-minister-puts-public-control-community-regeneration-and-cost-of-living-at-the-heart-of-plans-to-rewire-britain" target="_blank" rel="noopener">Cabinet Office</a> &middot; Published 02 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::PM announces community regeneration and cost-of-living taskforces as national priorities::4" data-headline="PM announces community regeneration and cost-of-living taskforces as national priorities" data-url="https://www.gov.uk/government/news/prime-minister-puts-public-control-community-regeneration-and-cost-of-living-at-the-heart-of-plans-to-rewire-britain" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
+        </div></section><section><h2>Expansion &amp; Place-Based Opportunities</h2>
+        <div class="item" data-rating="2">
+          <h3>North Northamptonshire Council expands family hub network into Corby <span class="category">Local authority family hub network expansion</span><span class="rating" title="Relevance">★★</span>
+            <span class="confidence confidence-high">high</span></h3>
+          <p>North Northamptonshire Council has extended its family hub network to cover Corby, adding a new hub as part of its implementation of the national Family Hubs programme. The expansion reflects continued local authority investment in early years infrastructure in the area.</p><p class="why"><strong>Why it matters to Babyzone:</strong> Active LA investment in family hub infrastructure in North Northamptonshire is a signal worth noting if Babyzone is considering expansion in that geography — a new authority-run hub could represent a co-location or partnership prospect rather than a competing presence.</p><p class="action"><strong>Suggested action:</strong> Expansion lead to note Corby as an active family hub location and check whether North Northamptonshire falls within Babyzone's expansion considerations. If so, explore whether partnership or co-location with the new LA hub is viable.</p><p class="meta"><strong>Owner:</strong> Expansion lead &middot; <strong>Urgency:</strong> monitor</p>
+          <p class="watchlist">Watchlist: Sure Start / Family Hubs programme, local authority family hubs, MHCLG (Family Hubs)</p>
+          
+          <p class="source"><a href="https://news.google.com/rss/articles/CBMiyAFBVV95cUxQX2dLX1JhdlZtc0dhbFVYSjlWbFVROFFTUXJfbXIzeFRZa244a3k5dUVZS1VfTFBzcFhDbHNOc2FLYVhiOFg3X0Z0YTdwQTJ0Z1dtQURmSGVLOWp1bVBfeVFoN1ZxQWpuYTZxb0duS29TSWNoQVlrU3NZaG4yb3Y4WEh0a0drOHRJNTJQdWxvMFpkYi1Yd0VvNzlCQ1YtcXAzTWlRdjNhU0g4bzFYVVJWQmhzYWZOeEZfZFRrUFFUNXlkSVdkWjF2Yg?oc=5" target="_blank" rel="noopener">Google News: Family Hubs — Northamptonshire Telegraph</a> &middot; Published 01 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::North Northamptonshire Council expands family hub network into Corby::5" data-headline="North Northamptonshire Council expands family hub network into Corby" data-url="https://news.google.com/rss/articles/CBMiyAFBVV95cUxQX2dLX1JhdlZtc0dhbFVYSjlWbFVROFFTUXJfbXIzeFRZa244a3k5dUVZS1VfTFBzcFhDbHNOc2FLYVhiOFg3X0Z0YTdwQTJ0Z1dtQURmSGVLOWp1bVBfeVFoN1ZxQWpuYTZxb0duS29TSWNoQVlrU3NZaG4yb3Y4WEh0a0drOHRJNTJQdWxvMFpkYi1Yd0VvNzlCQ1YtcXAzTWlRdjNhU0g4bzFYVVJWQmhzYWZOeEZfZFRrUFFUNXlkSVdkWjF2Yg?oc=5" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
         </div></section><section><h2>Partner Ecosystem</h2><p class="empty">Nothing met the bar today.</p></section><section><h2>Digital / Baby Buddy</h2>
         <div class="item" data-rating="4">
-          <h3>RCPCH signs MoU to explore digital personal child health record — early signal for Baby Buddy's space <span class="category">Digital health infrastructure MoU</span><span class="rating" title="Relevance">★★★★</span>
+          <h3>RCPCH signs agreement to explore a national digital personal child health record <span class="category">NHS-aligned digital health infrastructure MoU</span><span class="rating" title="Relevance">★★★★</span>
             <span class="confidence confidence-high">high</span></h3>
-          <p>The Royal College of Paediatrics and Child Health (RCPCH) has signed a Memorandum of Understanding to explore the development of a digital personal child health record (the digital equivalent of the red book). The MoU is at an early, exploratory stage and no specific delivery partner has been named.</p><p class="why"><strong>Why it matters to Babyzone:</strong> Baby Buddy is an NHS-aligned digital parenting tool covering the 0–5 age range; the RCPCH's move toward a national digital child health record infrastructure — the 'digital red book' — directly overlaps with Baby Buddy's roadmap space and could represent either a partnership opportunity or a shift in the digital parenting landscape to monitor carefully.</p><p class="action"><strong>Suggested action:</strong> Baby Buddy owner should track this MoU's development, identify the parties involved, and consider whether proactive engagement with RCPCH about Baby Buddy's existing NHS-aligned offer would be appropriate as the MoU progresses. No immediate action required, but this warrants active monitoring rather than passive awareness.</p><p class="meta"><strong>Owner:</strong> Baby Buddy owner &middot; <strong>Urgency:</strong> monitor</p>
-          
+          <p>The Royal College of Paediatrics and Child Health (RCPCH) has signed a memorandum of understanding to explore the development of a digital personal child health record — a national digital equivalent of the paper red book — covering child health and development from birth.</p><p class="why"><strong>Why it matters to Babyzone:</strong> This is directly in Baby Buddy's operational space: RCPCH-backed national digital child health record infrastructure could create both an integration opportunity and a partnership or positioning dynamic for an NHS-aligned parenting app. The Baby Buddy owner should assess whether this MoU opens a formal collaboration pathway.</p><p class="action"><strong>Suggested action:</strong> Baby Buddy owner to read the Digital Health report in full and assess whether Baby Buddy's content or engagement functionality could complement or integrate with an emerging national digital red book. Identify the lead parties within RCPCH and monitor for next steps beyond the MoU stage.</p><p class="meta"><strong>Owner:</strong> Baby Buddy owner &middot; <strong>Urgency:</strong> this_week</p>
+          <p class="watchlist">Watchlist: NHS-aligned digital parenting tools</p>
           
           <p class="source"><a href="https://news.google.com/rss/articles/CBMipAFBVV95cUxONG5abUowZ0ZveXJMSVJTN0JORnZoSzQteFRlTl9hY0tlZWdqU0JpMDZaQURmNm9xOWZhZnVnTXNja1JraEtWQllhYXdiUlRSdTloQXFjclVnLXF6Rkt0QUJkaXRKX2kxaFVuV0Y5R1FaVEN5VnBmNzV3bk9KRVFrUWhvTG9haVk1eDV0NWpVVFdRdlRpYUEwYTZhMG9FdU1NMU5idA?oc=5" target="_blank" rel="noopener">Google News: digital red book / child health record — Home | Digital Health</a> &middot; Published 02 September 2026</p>
+          <p class="bookmark-row"><button type="button" class="bookmark-btn" data-key="2026-09-02::RCPCH signs agreement to explore a national digital personal child health record::6" data-headline="RCPCH signs agreement to explore a national digital personal child health record" data-url="https://news.google.com/rss/articles/CBMipAFBVV95cUxONG5abUowZ0ZveXJMSVJTN0JORnZoSzQteFRlTl9hY0tlZWdqU0JpMDZaQURmNm9xOWZhZnVnTXNja1JraEtWQllhYXdiUlRSdTloQXFjclVnLXF6Rkt0QUJkaXRKX2kxaFVuV0Y5R1FaVEN5VnBmNzV3bk9KRVFrUWhvTG9haVk1eDV0NWpVVFdRdlRpYUEwYTZhMG9FdU1NMU5idA?oc=5" onclick="bzToggleBookmark(this)">☆ Bookmark</button></p>
         </div></section>
 </main>
+<script>
+// Client-side-only bookmarking — no backend, persisted in this browser's
+// localStorage keyed by "bzBookmarks". Works the same regardless of which
+// day's edition/draft is currently loaded, since localStorage is scoped to
+// the page's origin, not the individual page.
+(function() {
+  var STORAGE_KEY = "bzBookmarks";
+
+  function loadBookmarks() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveBookmarks(bookmarks) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
+    } catch (e) { /* localStorage unavailable — bookmarking silently no-ops */ }
+  }
+
+  function refreshButtonStates() {
+    var bookmarks = loadBookmarks();
+    document.querySelectorAll(".bookmark-btn").forEach(function(btn) {
+      var key = btn.getAttribute("data-key");
+      var on = !!bookmarks[key];
+      btn.classList.toggle("is-bookmarked", on);
+      btn.textContent = on ? "★ Bookmarked" : "☆ Bookmark";
+    });
+  }
+
+  function renderBookmarksList() {
+    var bookmarks = loadBookmarks();
+    var listEl = document.getElementById("bookmarks-list");
+    var emptyEl = document.getElementById("bookmarks-empty");
+    if (!listEl) return;
+    var keys = Object.keys(bookmarks);
+    listEl.innerHTML = "";
+    if (keys.length === 0) {
+      emptyEl.hidden = false;
+      return;
+    }
+    emptyEl.hidden = true;
+    keys.forEach(function(key) {
+      var b = bookmarks[key];
+      var li = document.createElement("li");
+      var a = document.createElement("a");
+      a.href = b.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = b.headline;
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "remove-bookmark";
+      removeBtn.textContent = "Remove";
+      removeBtn.setAttribute("data-key", key);
+      removeBtn.onclick = function() {
+        var current = loadBookmarks();
+        delete current[key];
+        saveBookmarks(current);
+        refreshButtonStates();
+        renderBookmarksList();
+      };
+      li.appendChild(a);
+      li.appendChild(removeBtn);
+      listEl.appendChild(li);
+    });
+  }
+
+  window.bzToggleBookmark = function(btn) {
+    var key = btn.getAttribute("data-key");
+    var bookmarks = loadBookmarks();
+    if (bookmarks[key]) {
+      delete bookmarks[key];
+    } else {
+      bookmarks[key] = {
+        headline: btn.getAttribute("data-headline"),
+        url: btn.getAttribute("data-url")
+      };
+    }
+    saveBookmarks(bookmarks);
+    refreshButtonStates();
+    renderBookmarksList();
+  };
+
+  window.bzToggleBookmarksPanel = function() {
+    var panel = document.getElementById("bookmarks-panel");
+    if (!panel) return;
+    var willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    panel.classList.toggle("is-open", willOpen);
+    if (willOpen) renderBookmarksList();
+  };
+
+  refreshButtonStates();
+})();
+</script>
 </body>
 </html>
