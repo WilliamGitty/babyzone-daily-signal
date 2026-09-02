@@ -564,6 +564,13 @@ def main() -> None:
     index_html = render_html(items, date_str, updated_str=updated_str)
     (REPO_ROOT / "index.html").write_text(index_html)
 
+    # Dated archive copy, mirroring the reference project's drafts/ pattern.
+    # The GitHub Actions commit step stages `drafts` unconditionally, so the
+    # directory must exist and contain today's file on every run.
+    drafts_dir = REPO_ROOT / "drafts"
+    drafts_dir.mkdir(parents=True, exist_ok=True)
+    (drafts_dir / f"{date_str}.html").write_text(index_html)
+
     estimated_cost_usd = round(estimated_cost(usage), 4)
 
     metrics_path = REPO_ROOT / "metrics.jsonl"
