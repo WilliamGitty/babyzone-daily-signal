@@ -808,6 +808,21 @@ def main() -> None:
     date_str = today.strftime("%Y-%m-%d")
     updated_str = today.astimezone(ZoneInfo("Europe/London")).strftime("%H:%M %Z")
 
+    # Idempotency guard: multiple triggers can legitimately land on the same
+    # day (staggered GitHub schedule entries, the cron-job.org watchdog, a
+    # manual re-run) since none of them can be trusted alone to fire on
+    # time. Without this, every redundant trigger pays for a full fresh
+    # Claude call. Skip straight to a no-op unless FORCE_REGENERATE=1 is set
+    # (e.g. for a deliberate re-run after fixing sources.yaml or prompt.md).
+    today_draft = REPO_ROOT / "drafts" / f"{date_str}.html"
+    if today_draft.exists() and os.environ.get("FORCE_REGENERATE") != "1":
+        print(
+            f"{today_draft} already exists — today's edition is already "
+            "published. Skipping (set FORCE_REGENERATE=1 to override).",
+            file=sys.stderr,
+        )
+        return
+
     with open(REPO_ROOT / "config" / "sources.yaml") as f:
         feeds_config = yaml.safe_load(f)
     system_prompt = (REPO_ROOT / "config" / "prompt.md").read_text()
