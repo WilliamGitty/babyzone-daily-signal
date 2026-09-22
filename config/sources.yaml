@@ -74,14 +74,64 @@ feeds:
   # "failed" source in metrics/logs rather than corrupting output. Needs
   # periodic manual re-verification of the build id (visible in any
   # find-government-grants.service.gov.uk page's <script src> paths). ---
-  - name: "Find a Grant: early years"
-    url: "https://find-government-grants.service.gov.uk/_next/data/FTWhBBOb5sBs97tTvdHHP/grants.json?searchTerm=early+years"
+  # 2026-09-22: switched from a hardcoded build id (which had gone stale
+  # and started 404ing — the exact failure mode predicted below) to a
+  # `search_term` that generate.py's fetch_find_a_grant() combines with a
+  # build id it resolves live on every run. See
+  # resolve_find_a_grant_build_id() in generate.py.
+  - name: "early years"
+    search_term: "early years"
     type: find_a_grant
     section_hint: funding
-  - name: "Find a Grant: children and families"
-    url: "https://find-government-grants.service.gov.uk/_next/data/FTWhBBOb5sBs97tTvdHHP/grants.json?searchTerm=children+and+families"
+  - name: "children and families"
+    search_term: "children and families"
     type: find_a_grant
     section_hint: funding
+
+  # --- Parliamentary sources (added 2026-09-22, from Jonathan's requirements
+  # meeting — the "committee/departmental-level policy" gap he explicitly
+  # flagged, previously handled only by his own weekly Notion agent sweep
+  # with a low hit rate). All verified live 2026-09-22. Fetched via
+  # generate.py's fetch_hansard()/fetch_petitions(), not fetch_rss_feeds()
+  # — see `type` below. Note: committees.parliament.uk itself (the actual
+  # Education Committee / Work & Pensions Committee inquiry pages Jonathan
+  # named) is confirmed SITE-WIDE Cloudflare-blocked — every path tried
+  # 403s, including the bare homepage — so committee activity specifically
+  # is only partially covered here (via Hansard debate mentions), not
+  # directly. No workaround found; flagged as a known remaining gap. ---
+  - name: "debates: early years"
+    url: "https://hansard-api.parliament.uk/search/debates.json?queryParameters.searchTerm=early%20years"
+    type: hansard_search
+    section_hint: policy
+  - name: "debates: childcare"
+    url: "https://hansard-api.parliament.uk/search/debates.json?queryParameters.searchTerm=childcare"
+    type: hansard_search
+    section_hint: policy
+  - name: "debates: child poverty"
+    url: "https://hansard-api.parliament.uk/search/debates.json?queryParameters.searchTerm=child%20poverty"
+    type: hansard_search
+    section_hint: policy
+  - name: "childcare"
+    url: "https://petition.parliament.uk/petitions.json?state=open&q=childcare"
+    type: petitions_search
+    section_hint: policy
+  - name: "child poverty"
+    url: "https://petition.parliament.uk/petitions.json?state=open&q=child+poverty"
+    type: petitions_search
+    section_hint: policy
+  - name: "House of Commons Library"
+    url: https://commonslibrary.parliament.uk/feed/
+    section_hint: research
+  - name: "POST (Parliamentary Office of Science and Technology)"
+    url: https://post.parliament.uk/feed/
+    section_hint: research
+
+  # --- Ofsted (added 2026-09-22) — same GOV.UK org-Atom pattern as
+  # DfE/DWP/MHCLG above, verified live: covers both consultations and
+  # childcare-provider inspection/enforcement activity in one feed. ---
+  - name: Ofsted
+    url: https://www.gov.uk/government/organisations/ofsted.atom
+    section_hint: policy
 
   # --- Named funders/foundations with genuinely working direct feeds ---
   - name: "BBC Children in Need"
@@ -106,6 +156,40 @@ feeds:
     section_hint: research
   - name: "The Money Charity"
     url: https://themoneycharity.org.uk/feed/
+    section_hint: partner
+  - name: "Sutton Trust"
+    url: https://www.suttontrust.com/feed
+    section_hint: research
+  - name: "Social Market Foundation"
+    url: https://www.smf.co.uk/feed
+    section_hint: research
+  - name: "Foundations (What Works for Children's Social Care)"
+    url: https://foundations.org.uk/feed
+    section_hint: research
+  # IPPR (added 2026-09-22): the obvious guesses (/feed, /rss) 404 — the
+  # real path was only discoverable via a <link rel="alternate"> tag on
+  # the homepage HTML. Verified live: 49 items, genuinely recent, but a
+  # noisy "everything" feed — interleaves genuine research/press releases
+  # with bare author-profile-page stubs and at least one empty-title junk
+  # entry. Kept anyway (real signal is present and IPPR is a genuine
+  # policy voice on child poverty/early years) but flagged here as the
+  # noisiest source in this file — if it produces bad output, this is the
+  # first source to review.
+  - name: IPPR
+    url: "https://www.ippr.org/feed.rss"
+    section_hint: research
+
+  # --- Early-years/family sector bodies (added 2026-09-22, from Jonathan's
+  # requirements meeting — direct sector-body coverage was a real gap
+  # before this) ---
+  - name: NDNA
+    url: https://www.ndna.org.uk/feed
+    section_hint: partner
+  - name: "Early Education / TACTYC"
+    url: https://early-education.org.uk/feed
+    section_hint: partner
+  - name: "Institute of Health Visiting"
+    url: https://ihv.org.uk/feed
     section_hint: partner
 
   # --- Comparable/adjacent organisations (place-based expansion signal) ---
@@ -279,3 +363,47 @@ max_items_per_feed: 6
 #   - Google News: executive function early years child development: badly
 #     noisy — genuine child-development hits interleaved with unrelated
 #     watch/car-parts spam sites — dropped.
+#
+# Additional sources tested live 2026-09-22 (from Jonathan/Sara's
+# requirements meeting source list) and dropped:
+#   - Hansard written questions/answers: no working dedicated path found
+#     (guessed writtenquestions.json/writtenanswers.json both 404; the API's
+#     own Swagger docs page is also 404, so the real path can't be
+#     confirmed without further reverse-engineering). search/debates.json
+#     (used above) is the only confirmed-working Hansard endpoint —
+#     written-question coverage remains a gap.
+#   - committees.parliament.uk (all paths, including a specific
+#     committee's own news.rss, a specific inquiry's news.rss, the bare
+#     site root, and a non-RSS publications page): confirmed SITE-WIDE
+#     Cloudflare block, not just the /news.rss path already noted above.
+#     No workaround found.
+#   - DfE grants collection (gov.uk/government/collections/dfe-grants):
+#     genuine GOV.UK 404 — the slug itself doesn't exist/has been
+#     renamed. A correct current slug would need manual browsing to find.
+#   - Explore Education Statistics: no RSS/Atom/JSON feed discoverable
+#     (JS-rendered Next.js site, guessed /api/publications also 404s).
+#   - ONS releases RSS: the documented releasecalendar?query=X&rss pattern
+#     returns HTTP 200 but the query= param is SILENTLY IGNORED (three
+#     different queries returned byte-identical generic results) — same
+#     "looks like it filters but doesn't" trap as GOV.UK's order= param
+#     noted above. Not usable without client-side filtering — dropped.
+#   - Early Years Alliance, LGA, Education Endowment Foundation: all
+#     HTTP 403 Cloudflare block, including their bare homepages.
+#   - IFS: HTTP 403 Cloudflare block — confirms the existing note above.
+#   - Coram Family and Childcare (familyandchildcaretrust.org): TCP
+#     connection itself times out on every path, including the homepage —
+#     same failure mode as AKO Foundation above (likely geofenced).
+#   - Action for Children, NSPCC, NCB, CPAG, Barnardo's, The Children's
+#     Society, Save the Children UK, Institute for Government: no RSS
+#     feed discoverable at common paths or via homepage <link> tags
+#     (NSPCC and NCB specifically 403 site-wide via Cloudflare; the rest
+#     404 cleanly with no feed link found).
+#   - Policy Exchange (policyexchange.org.uk/feed): HTTP 200, well-formed,
+#     but effectively abandoned — only 2 items, dated 2020 and 2015.
+#   - Demos (demos.co.uk/feed): HTTP 200, well-formed, current
+#     lastBuildDate, but genuinely EMPTY (0 items) — same pattern as
+#     EPI/NPC above.
+#   - TES (tes.com/magazine/rss): HTTP 200, well-formed feed shape, but
+#     genuinely EMPTY at time of testing. Not wired in as-is since it
+#     would contribute zero items, but worth a periodic re-check since
+#     the endpoint itself is real (unlike the other 404s above).

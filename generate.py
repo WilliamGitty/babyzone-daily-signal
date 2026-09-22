@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -72,6 +73,7 @@ def estimated_cost(usage: dict) -> float:
 
 
 SECTION_TITLES = {
+    "tenders": "Tenders & Contracts",
     "behind_headlines": "Behind the Headlines",
     "research": "Research & Insights",
     "global": "Global Perspectives",
@@ -86,9 +88,15 @@ SECTION_ORDER = list(SECTION_TITLES.keys())
 # Role titles Claude routes items to via the `owner` field — see
 # config/prompt.md's "One unified item format" section. Deliberately role
 # titles, not personal names, so the pipeline survives staff changes.
+# Added 2026-09-22 (post requirements meeting with Jonathan/Sara): "Comms &
+# Content lead" for Sara's explicit ask (items worth commenting on/
+# reposting, or that inform Babyzone's own public stance on policy) — a
+# genuinely different lens from Policy & Impact's internal-strategy read of
+# the same story.
 OWNER_ROLES = [
     "Fundraising lead",
     "Policy & Impact lead",
+    "Comms & Content lead",
     "Baby Buddy owner",
     "Expansion lead",
     "Operations",
@@ -179,7 +187,7 @@ def fetch_rss_feeds(config: dict, sources: dict) -> tuple[str, list[dict]]:
     statuses = []
 
     for feed in config["feeds"]:
-        if feed.get("type") in ("govuk_search", "find_a_grant"):
+        if feed.get("type") in ("govuk_search", "find_a_grant", "hansard_search", "petitions_search"):
             continue  # handled separately below — different response shape
         name, url = feed["name"], feed["url"]
         try:
@@ -287,19 +295,49 @@ def fetch_govuk_search(config: dict, sources: dict) -> tuple[str, list[dict]]:
     return "\n\n".join(blocks), statuses
 
 
+def resolve_find_a_grant_build_id(ua: str) -> str | None:
+    """Find a Grant's search results live inside a Next.js
+    "_next/data/<build-id>/grants.json" route — not a documented public
+    API. The build id changes every time the service redeploys, which
+    previously meant the hardcoded id in sources.yaml going stale and every
+    find_a_grant source silently 404ing until someone noticed (this
+    happened in practice — see agilisys/babyzone build notes). Fixed here
+    by resolving the current build id live off the public search page's
+    own HTML on every run, instead of hardcoding it.
+
+    The id is embedded as `"buildId":"<id>"` inside the page's own
+    __NEXT_DATA__ JSON blob — confirmed live 2026-09-22. (An earlier
+    version of this function tried to lift the id from a
+    `/_next/static/<id>/` asset path instead, which is ambiguous — some
+    asset paths use a literal "css" segment there, not the real build id —
+    and was caught failing exactly that way in local testing before this
+    shipped. The buildId field itself has no such ambiguity.) Returns None
+    (not an exception) on any failure, so callers can degrade to "no
+    grants this run" rather than crashing the whole pipeline over one
+    broken source.
+    """
+    try:
+        resp = requests.get(
+            "https://www.find-government-grants.service.gov.uk/grants",
+            headers={"User-Agent": ua}, timeout=15,
+        )
+        resp.raise_for_status()
+        m = re.search(r'"buildId":"([^"]+)"', resp.text)
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
+
 def fetch_find_a_grant(config: dict, sources: dict) -> tuple[str, list[dict]]:
     """Fetch Find a Grant's internal Next.js data endpoint (type:
-    find_a_grant in sources.yaml).
+    find_a_grant in sources.yaml, identified by `search_term`, not a full
+    URL — see resolve_find_a_grant_build_id()).
 
-    Verified live: searchTerm genuinely filters server-side. This is NOT a
-    documented public API — it's an internal "_next/data/<build-id>/..."
-    route that will 404 once find-government-grants.service.gov.uk next
-    redeploys and its build id changes. Confirmed live that a wrong build
-    id fails cleanly with a 404 (caught by the except below and logged as a
-    normal "failed" status), not silent garbage — so this degrades safely,
-    but the build id in config/sources.yaml will need periodic manual
-    re-verification (visible in any page's <script src> paths on that
-    site) to keep this source alive.
+    Verified live: searchTerm genuinely filters server-side. Confirmed live
+    that a wrong/stale build id fails cleanly with a 404 (caught by the
+    except below and logged as a normal "failed" status), not silent
+    garbage — so this still degrades safely even if the live resolve above
+    itself ever fails.
 
     Grants have no age/publish-date concept the same way news does (a grant
     stays "live" for its whole open window) — so no FEED_LOOKBACK_HOURS
@@ -311,10 +349,23 @@ def fetch_find_a_grant(config: dict, sources: dict) -> tuple[str, list[dict]]:
     blocks = []
     statuses = []
 
-    for feed in config["feeds"]:
-        if feed.get("type") != "find_a_grant":
-            continue
-        name, url = feed["name"], feed["url"]
+    grant_feeds = [f for f in config["feeds"] if f.get("type") == "find_a_grant"]
+    if not grant_feeds:
+        return "", statuses
+
+    build_id = resolve_find_a_grant_build_id(ua)
+    if build_id is None:
+        for feed in grant_feeds:
+            statuses.append({"name": feed["name"], "status": "failed", "error": "could not resolve build id"})
+        return "", statuses
+
+    for feed in grant_feeds:
+        name = feed["name"]
+        search_term = feed["search_term"]
+        url = (
+            f"https://www.find-government-grants.service.gov.uk/_next/data/"
+            f"{build_id}/grants.json?searchTerm={requests.utils.quote(search_term)}"
+        )
         try:
             resp = requests.get(url, headers={"User-Agent": ua}, timeout=15)
             resp.raise_for_status()
@@ -342,6 +393,260 @@ def fetch_find_a_grant(config: dict, sources: dict) -> tuple[str, list[dict]]:
                 )
             blocks.append("\n".join(lines))
             statuses.append({"name": name, "status": "ok", "count": len(grants)})
+        except Exception as exc:
+            statuses.append({"name": name, "status": "failed", "error": str(exc)})
+
+    return "\n\n".join(blocks), statuses
+
+
+TENDER_KEYWORDS = [
+    "early years", "childcare", "child care", "family hub", "family hubs",
+    "family support", "children's centre", "children's centres",
+    "best start in life", "start for life", "health visiting",
+    "parenting support", "children and families", "family services",
+    "kinship care", "child poverty",
+]
+
+
+def _release_matches_tender_keywords(release: dict) -> bool:
+    tender = release.get("tender", {}) or {}
+    text = " ".join([
+        tender.get("title", "") or "",
+        tender.get("description", "") or "",
+    ]).lower()
+    return any(kw in text for kw in TENDER_KEYWORDS)
+
+
+def fetch_tenders(config: dict, sources: dict) -> tuple[str, list[dict]]:
+    """Fetch UK public-sector tenders from Find a Tender and Contracts
+    Finder's OCDS (Open Contracting Data Standard) APIs, filtered to
+    Babyzone-relevant keywords (see TENDER_KEYWORDS) with NO minimum
+    contract value — deliberately, per Jonathan's explicit steer in the
+    2026-09-22 requirements meeting: Babyzone-relevant contracts have
+    ranged from ~£5m delivery/implementation-partner deals down to small
+    local pieces of work, and the team wants the full range, not a
+    filtered slice like the £15k floor on the tool Will separately
+    evaluated for this.
+
+    Both APIs are cursor-paginated via a `links.next` URL in the response,
+    not offset/limit — confirmed live earlier in the same research thread
+    that led to this feature. Find a Tender defaults to 100/page; Contracts
+    Finder rejects limit=300 with a 400 (its real max is limit=100). Capped
+    at MAX_PAGES per source per run since this runs daily (not a one-off
+    historical sweep) — a burst of same-day notices is the only realistic
+    case that would need more than a few pages.
+
+    DfE publishes its e-tendering opportunities (run via the Jaggaer
+    portal) onto Find a Tender per DfE's own procurement guidance — so this
+    covers DfE-run procurements too without needing Jaggaer access, which
+    is login-gated and deliberately NOT something this pipeline attempts to
+    automate around (see project brief).
+    """
+    ua = config["user_agent"]
+    max_items = config["max_items_per_feed"]
+    cutoff_dt = datetime.now(timezone.utc) - timedelta(hours=FEED_LOOKBACK_HOURS)
+    since = cutoff_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    MAX_PAGES = 5
+    statuses = []
+    seen_ocids: set[str] = set()
+    matches = []
+
+    # --- Find a Tender ---
+    try:
+        url = (
+            "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages"
+            f"?updatedFrom={since}&updatedTo={now}"
+        )
+        count = 0
+        for _ in range(MAX_PAGES):
+            if not url:
+                break
+            resp = requests.get(url, headers={"User-Agent": ua}, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+            for release in data.get("releases", []):
+                count += 1
+                ocid = release.get("ocid", "")
+                if ocid in seen_ocids or not _release_matches_tender_keywords(release):
+                    continue
+                seen_ocids.add(ocid)
+                matches.append(("Find a Tender", release))
+            url = data.get("links", {}).get("next")
+        statuses.append({"name": "Find a Tender", "status": "ok", "count": count})
+    except Exception as exc:
+        statuses.append({"name": "Find a Tender", "status": "failed", "error": str(exc)})
+
+    # --- Contracts Finder ---
+    try:
+        url = (
+            "https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search"
+            f"?order=desc&publishedFrom={since}&limit=100"
+        )
+        count = 0
+        for _ in range(MAX_PAGES):
+            if not url:
+                break
+            resp = requests.get(url, headers={"User-Agent": ua}, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+            for release in data.get("releases", []):
+                count += 1
+                ocid = release.get("ocid", "")
+                if ocid in seen_ocids or not _release_matches_tender_keywords(release):
+                    continue
+                seen_ocids.add(ocid)
+                matches.append(("Contracts Finder", release))
+            url = data.get("links", {}).get("next")
+        statuses.append({"name": "Contracts Finder", "status": "ok", "count": count})
+    except Exception as exc:
+        statuses.append({"name": "Contracts Finder", "status": "failed", "error": str(exc)})
+
+    matches = matches[:max_items * 3]  # tenders get a wider cap than a single RSS feed — this covers two whole APIs
+    if not matches:
+        return "", statuses
+
+    lines = ["### UK public-sector tenders (Find a Tender / Contracts Finder)"]
+    for source_label, release in matches:
+        tender = release.get("tender", {}) or {}
+        buyer = (release.get("buyer", {}) or {}).get("name", "Unknown buyer")
+        title = (tender.get("title") or "Untitled notice").strip()
+        description = (tender.get("description") or "").strip()[:500]
+        value = (tender.get("value", {}) or {})
+        amount = value.get("amount")
+        currency = value.get("currency", "GBP")
+        value_display = f"{currency} {amount:,.0f}" if isinstance(amount, (int, float)) else "not stated"
+        deadline = ((tender.get("tenderPeriod", {}) or {}).get("endDate") or "not stated")
+        release_id = release.get("id", "")
+        if source_label == "Find a Tender":
+            link = f"https://www.find-tender.service.gov.uk/Notice/{release_id}"
+        else:
+            link = f"https://www.contractsfinder.service.gov.uk/Notice/{release_id[:36]}"
+        source_id = f"T{len(sources) + 1}"
+        sources[source_id] = {"name": f"{source_label}: {buyer}", "url": link, "published": ""}
+        lines.append(
+            f"- [{source_id}] **{title}** (Buyer: {buyer}, value: {value_display}, "
+            f"deadline: {deadline})\n  {description}"
+        )
+
+    return "\n".join(lines), statuses
+
+
+def fetch_hansard(config: dict, sources: dict) -> tuple[str, list[dict]]:
+    """Fetch UK Parliament debate mentions via the Hansard search API
+    (type: hansard_search in sources.yaml). JSON, not RSS — separate from
+    fetch_rss_feeds for the same reason as fetch_govuk_search.
+
+    Verified live: queryParameters.searchTerm genuinely filters
+    server-side. Response shape is {"Results": [{"Title", "SittingDate",
+    "House", "DebateSectionExtId", ...}]} — confirmed live 2026-09-22, no
+    auth/key required. The constructed hansard.parliament.uk link omits the
+    cosmetic URL slug Hansard's own site normally appends (the exact slug
+    isn't returned by this API) — the bare House/date/id path still
+    resolves correctly for a human clicking through in a browser.
+    """
+    ua = config["user_agent"]
+    max_items = config["max_items_per_feed"]
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=FEED_LOOKBACK_HOURS)
+    blocks = []
+    statuses = []
+
+    for feed in config["feeds"]:
+        if feed.get("type") != "hansard_search":
+            continue
+        name, url = feed["name"], feed["url"]
+        try:
+            resp = requests.get(url, headers={"User-Agent": ua}, timeout=15)
+            resp.raise_for_status()
+            results = resp.json().get("Results", [])
+            fresh = []
+            for r in results:
+                sitting_date = r.get("SittingDate", "")
+                try:
+                    dt = datetime.fromisoformat(sitting_date.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    continue
+                if dt >= cutoff:
+                    fresh.append((r, dt))
+            fresh = fresh[:max_items]
+            if not fresh:
+                statuses.append({"name": name, "status": "empty"})
+                continue
+            lines = [f"### Hansard: {name}"]
+            for r, dt in fresh:
+                title = (r.get("Title") or "").strip()
+                house = r.get("House", "")
+                ext_id = r.get("DebateSectionExtId", "")
+                date_path = dt.strftime("%Y-%m-%d")
+                link = f"https://hansard.parliament.uk/{house}/{date_path}/debates/{ext_id}"
+                if not title or not ext_id:
+                    continue
+                source_id = f"H{len(sources) + 1}"
+                sources[source_id] = {
+                    "name": f"Hansard ({house})", "url": link, "published": dt.strftime("%d %B %Y"),
+                }
+                lines.append(f"- [{source_id}] **{title.strip()}** — {house}, {date_path}")
+            blocks.append("\n".join(lines))
+            statuses.append({"name": name, "status": "ok", "count": len(fresh)})
+        except Exception as exc:
+            statuses.append({"name": name, "status": "failed", "error": str(exc)})
+
+    return "\n\n".join(blocks), statuses
+
+
+def fetch_petitions(config: dict, sources: dict) -> tuple[str, list[dict]]:
+    """Fetch UK Parliament petitions (type: petitions_search in
+    sources.yaml). JSON, not RSS.
+
+    Verified live: state=open + q= both genuinely filter server-side.
+    Petitions don't have a "published" date the way news does — created_at
+    is used for the freshness cutoff instead, same principle as elsewhere,
+    since a petition open for months isn't really "new" each time this
+    runs.
+    """
+    ua = config["user_agent"]
+    max_items = config["max_items_per_feed"]
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=FEED_LOOKBACK_HOURS)
+    blocks = []
+    statuses = []
+
+    for feed in config["feeds"]:
+        if feed.get("type") != "petitions_search":
+            continue
+        name, url = feed["name"], feed["url"]
+        try:
+            resp = requests.get(url, headers={"User-Agent": ua}, timeout=15)
+            resp.raise_for_status()
+            petitions = resp.json().get("data", [])
+            fresh = []
+            for p in petitions:
+                attrs = p.get("attributes", {}) or {}
+                created = attrs.get("created_at", "")
+                try:
+                    dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if dt >= cutoff:
+                    fresh.append((p, attrs, dt))
+            fresh = fresh[:max_items]
+            if not fresh:
+                statuses.append({"name": name, "status": "empty"})
+                continue
+            lines = [f"### UK Parliament Petitions: {name}"]
+            for p, attrs, dt in fresh:
+                action = (attrs.get("action") or "").strip()
+                signatures = attrs.get("signature_count", 0)
+                pid = p.get("id", "")
+                if not action or not pid:
+                    continue
+                link = f"https://petition.parliament.uk/petitions/{pid}"
+                source_id = f"P{len(sources) + 1}"
+                sources[source_id] = {
+                    "name": "UK Parliament Petitions", "url": link, "published": dt.strftime("%d %B %Y"),
+                }
+                lines.append(f"- [{source_id}] **{action}** ({signatures:,} signatures)")
+            blocks.append("\n".join(lines))
+            statuses.append({"name": name, "status": "ok", "count": len(fresh)})
         except Exception as exc:
             statuses.append({"name": name, "status": "failed", "error": str(exc)})
 
@@ -465,22 +770,36 @@ def render_html(
         headline_esc = esc(item["headline"])
         url_esc = esc(item["source_url"])
         bookmark_html = (
-            f'<p class="bookmark-row">'
             f'<button type="button" class="bookmark-btn" '
             f'data-key="{key}" data-headline="{headline_esc}" data-url="{url_esc}" '
             f'onclick="bzToggleBookmark(this)">☆ Bookmark</button>'
-            f'</p>'
         )
+        # Share button, ported from Agilisys - hidden by default, JS reveals
+        # it only when navigator.share exists (mobile browsers mostly), so
+        # desktop never shows a button that would silently no-op.
+        share_html = (
+            f'<button type="button" class="share-btn" hidden '
+            f'data-title="{headline_esc}" data-url="{url_esc}">&#8599; Share</button>'
+        )
+        rating_value = max(0, min(5, item.get("relevance_rating", 0)))
+        kicker = esc(SECTION_TITLES.get(item.get("section", ""), item.get("section", "")))
+        # <details>/<summary>, ported from Agilisys - title-only by default,
+        # tap to expand for the rest. Keyboard/screen-reader behaviour comes
+        # free with the native element; none of the bookmark JS below needed
+        # to change, since it already selects by class/attribute, not tag.
         return f"""
-        <div class="item" data-rating="{max(0, min(5, item.get('relevance_rating', 0)))}">
-          <h3>{headline_esc} {category_html}<span class="rating" title="Relevance">{stars}</span>
-            <span class="confidence confidence-{esc(item['confidence'])}">{esc(item['confidence'])}</span></h3>
+        <details class="item" data-rating="{rating_value}">
+          <summary>
+            <span class="kicker">{kicker}</span>
+            <h3>{headline_esc} {category_html}<span class="rating" title="Relevance">{stars}</span>
+              <span class="confidence confidence-{esc(item['confidence'])}">{esc(item['confidence'])}</span></h3>
+          </summary>
           {body_html}
           {watchlist_html}
           {paywall_html}
           <p class="source"><a href="{url_esc}" target="_blank" rel="noopener">{esc(item['source_name'])}</a>{f" &middot; Published {esc(item['source_published'])}" if item.get('source_published') else ""}</p>
-          {bookmark_html}
-        </div>"""
+          <p class="bookmark-row">{share_html}{bookmark_html}</p>
+        </details>"""
 
     # Top Actions is a curated summary list, not just anywhere the model
     # said `top_action: true` — never trust the model to self-police (see
@@ -520,7 +839,7 @@ def render_html(
                 rendered.append(render_item(i, item_counter))
                 item_counter += 1
             body = "".join(rendered)
-        sections_html.append(f'<section><h2>{esc(title)}</h2>{body}</section>')
+        sections_html.append(f'<section data-section="{esc(section_key)}"><h2>{esc(title)}</h2>{body}</section>')
 
     archive_links = archive_links or []
     archive_options = "".join(
@@ -543,12 +862,22 @@ def render_html(
 <link rel="icon" href="{asset_prefix}icon.png">
 <link rel="apple-touch-icon" href="{asset_prefix}icon.png">
 <style>
-body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #EEEEEE; }}
+/* Serif for headlines/headings only (editorial identity, ported from the
+   Agilisys reference build) - body copy, meta info, and controls stay
+   sans-serif for readability. Georgia stack: safe, universally available,
+   no external font loading = no extra network dependency for a page that
+   has to render reliably every day. */
+/* Wider max-width for a proper multi-column layout on laptop/desktop
+   (FT-style grid, ported from Agilisys) - safe for mobile because
+   max-width only ever caps width on screens wider than it. Babyzone's own
+   light-grey background kept (not Agilisys's light blue) to stay on
+   Babyzone's palette. */
+body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 15px; max-width: 1360px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #EEEEEE; }}
 header {{ border-bottom: 3px solid #212F5E; padding-bottom: 12px; margin-bottom: 24px; }}
 .header-top {{ display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }}
 .header-title {{ display: flex; align-items: center; gap: 12px; }}
 .header-title img.logo {{ width: 52px; height: 52px; }}
-header h1 {{ margin: 0; font-size: 1.6em; color: #212F5E; }}
+header h1 {{ margin: 0; font-size: 1.6em; color: #212F5E; font-family: Georgia, 'Times New Roman', serif; }}
 .badge {{ background: #FF9C00; color: #212F5E; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; vertical-align: middle; }}
 .header-actions {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
 .header-actions button, .header-actions .archive-nav select {{
@@ -556,10 +885,59 @@ header h1 {{ margin: 0; font-size: 1.6em; color: #212F5E; }}
   background: white; color: #212F5E; padding: 6px 10px; cursor: pointer;
 }}
 .header-actions button:hover {{ background: #212F5E; color: white; }}
-section {{ margin-bottom: 32px; }}
-section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E; }}
-.item {{ background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }}
-.item h3 {{ margin: 0 0 8px 0; font-size: 1.05em; }}
+.header-actions button.active {{ background: #212F5E; color: white; }}
+/* Stacks to a single centred column on narrow screens, ported from
+   Agilisys - a wide header row gets cramped on a phone. */
+@media (max-width: 560px) {{
+  .header-top {{ flex-direction: column; align-items: flex-start; }}
+  .header-actions {{ width: 100%; justify-content: flex-start; }}
+}}
+/* Rating-filter chip row, ported from Agilisys - pure client-side
+   show/hide by relevance rating, same pattern as the topic filters on
+   the other Signal builds. */
+.rating-filter {{ margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.85em; }}
+.rating-filter-label {{ color: #555; }}
+.rating-chip {{ font-size: 0.85em; font-weight: bold; padding: 4px 10px; border-radius: 999px; border: 1px solid #212F5E; background: #fff; color: #212F5E; cursor: pointer; }}
+.rating-chip.active {{ background: #212F5E; color: #fff; }}
+.legend-toggle {{ font-size: 0.85em; font-weight: bold; padding: 4px 10px; border-radius: 999px; border: 1px solid #212F5E; background: #fff; color: #212F5E; cursor: pointer; }}
+.legend-toggle.active {{ background: #212F5E; color: #fff; }}
+.item[hidden] {{ display: none; }}
+/* Legend explaining the star scale, ported from Agilisys as a toggled
+   panel rather than always-on text, to keep the header compact. */
+.legend {{ background: #fff; border: 1px solid #FF9C00; border-radius: 8px; padding: 10px 14px; margin: 10px 0 0; font-size: 0.82em; color: #333; }}
+.legend p {{ margin: 4px 0; }}
+.legend[hidden] {{ display: none; }}
+/* main becomes a responsive multi-column grid on wide screens, ported
+   from Agilisys - auto-fit + minmax collapses to a single column on its
+   own once the viewport is too narrow, so phones still get a single-
+   column stack with no separate media query needed. align-items: start
+   stops shorter sections being stretched to match a taller neighbour. */
+main {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }}
+section {{ margin-bottom: 0; }}
+section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E; font-family: Georgia, 'Times New Roman', serif; }}
+.kicker {{ display: block; font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 0.68em; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; color: #212F5E; margin-bottom: 4px; }}
+/* .item is a <details> element, ported from Agilisys - title-only by
+   default, tap/click to expand for summary/why-it-matters/action/source
+   (mobile-friendly: a tap toggle, not hover, works identically on phone
+   and desktop). Native <details>/<summary> chosen over a custom JS
+   toggle so keyboard/screen-reader behaviour comes for free. */
+.item {{ background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }}
+.item summary {{ cursor: pointer; list-style: none; }}
+.item summary::-webkit-details-marker {{ display: none; }}
+.item summary::after {{ content: '▸ Expand'; display: block; margin-top: 4px; font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 0.72em; font-weight: bold; color: #212F5E; }}
+.item[open] summary::after {{ content: '▾ Collapse'; }}
+.item h3 {{ margin: 0 0 8px 0; font-size: 1.05em; font-family: Georgia, 'Times New Roman', serif; line-height: 1.3; }}
+/* Visual weight scales with the item's own relevance rating (data-rating,
+   already set on every .item for the rating filter), ported from
+   Agilisys - a real front page sizes stories by editorial importance,
+   not just position in a list. */
+.item[data-rating="5"] {{ padding: 18px 20px; border-color: #FF9C00; }}
+.item[data-rating="5"] h3 {{ font-size: 1.3em; }}
+.item[data-rating="4"] h3 {{ font-size: 1.15em; }}
+.item[data-rating="2"] {{ background: #fafafa; }}
+.item[data-rating="2"] h3 {{ font-size: 0.98em; }}
+.item[data-rating="1"] {{ background: #fafafa; }}
+.item[data-rating="1"] h3 {{ font-size: 0.92em; color: #444; }}
 .rating {{ color: #d4a017; font-size: 0.85em; }}
 .confidence {{ font-size: 0.7em; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }}
 .confidence-high {{ background: #d4edda; color: #155724; }}
@@ -575,8 +953,8 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
 .empty {{ color: #888; font-style: italic; }}
 .paywall {{ font-size: 0.78em; color: #92400e; background: #fff7ed; border: 1px solid #fde3c4; border-radius: 4px; padding: 4px 8px; display: inline-block; }}
 .intro {{ font-size: 0.85em; color: #555; font-style: italic; margin: 0 0 20px; }}
-.top-actions {{ background: white; border: 1px solid #FF9C00; border-left: 6px solid #FF9C00; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }}
-.top-actions h2 {{ border-bottom: none; padding-bottom: 0; margin-top: 0; color: #212F5E; }}
+.top-actions {{ grid-column: 1 / -1; background: white; border: 1px solid #FF9C00; border-left: 6px solid #FF9C00; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }}
+.top-actions h2 {{ border-bottom: none; padding-bottom: 0; margin-top: 0; color: #212F5E; font-family: Georgia, 'Times New Roman', serif; }}
 .top-actions ul {{ list-style: none; margin: 0; padding: 0; }}
 .top-action-item {{ padding: 10px 0; border-bottom: 1px solid #eee; }}
 .top-action-item:last-child {{ border-bottom: none; }}
@@ -584,13 +962,14 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
 .top-action-item a:hover {{ text-decoration: underline; }}
 .top-action-item .why, .top-action-item .action {{ margin: 4px 0; font-size: 0.88em; }}
 .top-actions .owner {{ color: #666; font-size: 0.85em; }}
-.bookmark-row {{ margin: 8px 0 0; }}
-.bookmark-btn {{
-  font-family: inherit; font-size: 0.8em; border-radius: 6px; border: 1px solid #FF9C00;
-  background: white; color: #212F5E; padding: 4px 10px; cursor: pointer;
+.share-btn, .bookmark-btn {{
+  font-family: inherit; font-size: 0.78em; font-weight: bold; display: inline-block;
+  margin-top: 8px; margin-right: 6px; border-radius: 999px; border: 1px solid #FF9C00;
+  background: white; color: #212F5E; padding: 3px 10px; cursor: pointer;
 }}
+.bookmark-row {{ margin: 8px 0 0; }}
 .bookmark-btn.is-bookmarked {{ background: #FF9C00; color: #212F5E; border-color: #FF9C00; font-weight: 600; }}
-.bookmark-btn:hover {{ background: #ffe6b8; }}
+.bookmark-btn:hover, .share-btn:hover {{ background: #ffe6b8; }}
 .bookmarks-panel {{
   display: none; position: fixed; top: 0; right: 0; height: 100%; width: 320px; max-width: 88vw;
   background: white; box-shadow: -2px 0 12px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto;
@@ -604,7 +983,7 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
    fixes. */
 .bookmarks-panel[hidden] {{ display: none; }}
 .bookmarks-panel.is-open {{ display: block; }}
-.bookmarks-panel h2 {{ margin-top: 0; color: #212F5E; border-bottom: 1px solid #ccc; padding-bottom: 6px; }}
+.bookmarks-panel h2 {{ margin-top: 0; color: #212F5E; border-bottom: 1px solid #ccc; padding-bottom: 6px; font-family: Georgia, 'Times New Roman', serif; }}
 .bookmarks-panel ul {{ list-style: none; margin: 0; padding: 0; }}
 .bookmarks-panel li {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }}
 .bookmarks-panel li a {{ color: #212F5E; font-size: 0.9em; }}
@@ -634,6 +1013,23 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
       <button type="button" id="bookmarks-toggle" onclick="bzToggleBookmarksPanel()">★ Bookmarks</button>
       {archive_html}
     </div>
+  </div>
+  <nav class="rating-filter" aria-label="Filter by relevance rating">
+    <span class="rating-filter-label">Filter:</span>
+    <button type="button" class="rating-chip active" data-rating="all">All</button>
+    <button type="button" class="rating-chip" data-rating="1">★1</button>
+    <button type="button" class="rating-chip" data-rating="2">★2</button>
+    <button type="button" class="rating-chip" data-rating="3">★3</button>
+    <button type="button" class="rating-chip" data-rating="4">★4</button>
+    <button type="button" class="rating-chip" data-rating="5">★5</button>
+    <button type="button" id="legend-toggle" class="legend-toggle" aria-expanded="false">What do the stars mean?</button>
+  </nav>
+  <div class="legend" id="legend" hidden>
+    <p>★☆☆☆☆ marginal relevance to Babyzone</p>
+    <p>★★☆☆☆ minor relevance</p>
+    <p>★★★☆☆ worth noting</p>
+    <p>★★★★☆ significant opportunity or risk</p>
+    <p>★★★★★ major implications for Babyzone (funding, policy, or reputational)</p>
   </div>
 </header>
 <aside id="bookmarks-panel" class="bookmarks-panel" hidden>
@@ -745,6 +1141,53 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
 
   refreshButtonStates();
 }})();
+
+// Share button (Web Share API) — ported from Agilisys. Hidden by default;
+// only revealed where navigator.share actually exists, so desktop browsers
+// without support never see a button that would silently no-op.
+(function() {{
+  if (!navigator.share) return;
+  document.querySelectorAll(".share-btn").forEach(function(btn) {{
+    btn.hidden = false;
+    btn.addEventListener("click", function() {{
+      navigator.share({{
+        title: btn.getAttribute("data-title"),
+        url: btn.getAttribute("data-url")
+      }}).catch(function() {{}});
+    }});
+  }});
+}})();
+
+// "What do the stars mean?" legend toggle — ported from Agilisys.
+(function() {{
+  var legendEl = document.getElementById("legend");
+  var legendToggle = document.getElementById("legend-toggle");
+  if (!legendToggle || !legendEl) return;
+  legendToggle.addEventListener("click", function() {{
+    var opening = legendEl.hidden;
+    legendEl.hidden = !opening;
+    legendToggle.classList.toggle("active", opening);
+    legendToggle.setAttribute("aria-expanded", opening ? "true" : "false");
+  }});
+}})();
+
+// Rating filter — shows only items with the exact selected star rating;
+// "All" resets. Pure client-side show/hide via data-rating, ported from
+// Agilisys.
+(function() {{
+  var ratingChips = Array.prototype.slice.call(document.querySelectorAll(".rating-chip"));
+  var ratingItems = Array.prototype.slice.call(document.querySelectorAll(".item"));
+  ratingChips.forEach(function(chip) {{
+    chip.addEventListener("click", function() {{
+      ratingChips.forEach(function(c) {{ c.classList.remove("active"); }});
+      chip.classList.add("active");
+      var rating = chip.getAttribute("data-rating");
+      ratingItems.forEach(function(el) {{
+        el.hidden = rating !== "all" && el.getAttribute("data-rating") !== rating;
+      }});
+    }});
+  }});
+}})();
 </script>
 </body>
 </html>
@@ -785,7 +1228,7 @@ def build_archive_links(draft_dates: list[str], today_date_str: str, *, for_draf
     return links
 
 
-def sanity_check(items: list[dict], feed_statuses: list[dict], govuk_statuses: list[dict], grant_statuses: list[dict]) -> None:
+def sanity_check(items: list[dict], feed_statuses: list[dict], govuk_statuses: list[dict], grant_statuses: list[dict], tender_statuses: list[dict], hansard_statuses: list[dict], petition_statuses: list[dict]) -> None:
     """Fail loud rather than publish garbage. If most sections come back
     empty at once, that's a pipeline-wide failure (network, feedparser, a
     shared bug), not a quiet day for real news. See
@@ -793,7 +1236,10 @@ def sanity_check(items: list[dict], feed_statuses: list[dict], govuk_statuses: l
     """
     sections_with_content = {i["section"] for i in items}
     if len(sections_with_content) < len(SECTION_ORDER) / 2:
-        all_statuses = feed_statuses + govuk_statuses + grant_statuses
+        all_statuses = (
+            feed_statuses + govuk_statuses + grant_statuses
+            + tender_statuses + hansard_statuses + petition_statuses
+        )
         ok_count = sum(1 for s in all_statuses if s["status"] == "ok")
         raise SystemExit(
             f"Sanity check failed: only {len(sections_with_content)}/{len(SECTION_ORDER)} "
@@ -847,7 +1293,24 @@ def main() -> None:
     for s in grant_statuses:
         print(f"  {s}", file=sys.stderr)
 
-    combined_text = "\n\n".join(t for t in (feed_text, govuk_text, grant_text) if t)
+    tender_text, tender_statuses = fetch_tenders(feeds_config, sources)
+    print("Fetched tenders (Find a Tender / Contracts Finder):", file=sys.stderr)
+    for s in tender_statuses:
+        print(f"  {s}", file=sys.stderr)
+
+    hansard_text, hansard_statuses = fetch_hansard(feeds_config, sources)
+    print(f"Fetched {len(hansard_statuses)} Hansard search sources:", file=sys.stderr)
+    for s in hansard_statuses:
+        print(f"  {s}", file=sys.stderr)
+
+    petition_text, petition_statuses = fetch_petitions(feeds_config, sources)
+    print(f"Fetched {len(petition_statuses)} UK Parliament Petitions sources:", file=sys.stderr)
+    for s in petition_statuses:
+        print(f"  {s}", file=sys.stderr)
+
+    combined_text = "\n\n".join(
+        t for t in (feed_text, govuk_text, grant_text, tender_text, hansard_text, petition_text) if t
+    )
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print(
@@ -876,7 +1339,7 @@ def main() -> None:
         item["source_published"] = src.get("published", "")
         items.append(item)
 
-    sanity_check(items, feed_statuses, govuk_statuses, grant_statuses)
+    sanity_check(items, feed_statuses, govuk_statuses, grant_statuses, tender_statuses, hansard_statuses, petition_statuses)
 
     # Dated archive copy, mirroring the reference project's drafts/ pattern.
     # The GitHub Actions commit step stages `drafts` unconditionally, so the
@@ -927,6 +1390,12 @@ def main() -> None:
         "govuk_sources_failed": sum(1 for s in govuk_statuses if s["status"] == "failed"),
         "grant_sources_ok": sum(1 for s in grant_statuses if s["status"] == "ok"),
         "grant_sources_failed": sum(1 for s in grant_statuses if s["status"] == "failed"),
+        "tender_sources_ok": sum(1 for s in tender_statuses if s["status"] == "ok"),
+        "tender_sources_failed": sum(1 for s in tender_statuses if s["status"] == "failed"),
+        "hansard_sources_ok": sum(1 for s in hansard_statuses if s["status"] == "ok"),
+        "hansard_sources_failed": sum(1 for s in hansard_statuses if s["status"] == "failed"),
+        "petition_sources_ok": sum(1 for s in petition_statuses if s["status"] == "ok"),
+        "petition_sources_failed": sum(1 for s in petition_statuses if s["status"] == "failed"),
         "input_tokens": usage["input_tokens"],
         "output_tokens": usage["output_tokens"],
         "estimated_cost_usd": estimated_cost_usd,

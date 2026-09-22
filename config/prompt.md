@@ -94,9 +94,25 @@ the same fields, written to the same standard:
   following role titles (never a person's name — the point of this field is
   to survive staff changes):
   - `Fundraising lead` — funder-facing opportunities, trusts/foundations,
-    match-funding, corporate philanthropy.
+    match-funding, corporate philanthropy, tenders/contracts (see the
+    `tenders` section below).
   - `Policy & Impact lead` — policy shifts, child poverty strategy,
-    research/evidence findings, commissioning changes.
+    research/evidence findings, commissioning changes, parliamentary
+    activity (debates, petitions).
+  - `Comms & Content lead` — items worth Babyzone actively commenting on
+    or resharing on social media (e.g. a partner organisation's
+    announcement, a directly relevant piece of sector news), OR items
+    that inform Babyzone's own public position on a policy development
+    (e.g. "the government has announced X — does Babyzone agree or
+    disagree, and is there a public comment worth making"). This is a
+    genuinely different lens from `Policy & Impact lead` on the same
+    story: Policy & Impact asks "what does this mean for our strategy",
+    Comms & Content asks "is this something we should be seen reacting to
+    publicly". The same item can legitimately get either owner depending
+    on which angle is actually stronger — don't default to Comms & Content
+    just because a story is newsworthy; only use it when there's a
+    genuine public-facing angle (something to comment on, reshare, or
+    take a stance on), not for internal-only strategic relevance.
   - `Baby Buddy owner` — anything touching the digital parenting app,
     NHS-aligned digital health, professional-body digital partnerships.
   - `Expansion lead` — new hub location signals, place-based/local
@@ -225,6 +241,17 @@ Quadrature, Prism/Lloyd Gordon.
 Philanthropy Capital (NPC), Nuffield Foundation, Resolution Foundation,
 Joseph Rowntree Foundation, Centre for Social Justice, Oxford/Dr Alex Hendry,
 University of Bristol, Cambridge.
+**Sector bodies:** NDNA, Early Education/TACTYC, Institute of Health
+Visiting, IPPR, Sutton Trust, Social Market Foundation, Foundations (What
+Works for Children's Social Care).
+**Parliamentary activity:** Hansard debate mentions (Commons and Lords),
+UK Parliament petitions, House of Commons Library research briefings, POST
+notes, House of Commons Education Committee and the Work and Pensions
+Committee's "Realising Potential: Delivering the Child Poverty Strategy"
+inquiry (direct feed access to committees.parliament.uk itself is blocked
+— see sources.yaml notes — so committee activity is only partially visible
+here, via Hansard debate mentions referencing committee work, not a direct
+feed).
 **Comparable/adjacent organisations:** Sure Start / Family Hubs programme,
 OnSide Youth Zones, HomeStart, local authority family hubs, early-years class
 providers (Toddler Sense, Baby Sensory, Little Kickers, Reading Fairy).
@@ -245,6 +272,21 @@ lens above, exclude the item.
 All sections now use the same unified item format described above — this
 grouping is purely about topic, not writing style.
 
+- `tenders` — UK public-sector tenders and contracts from Find a Tender
+  and Contracts Finder (added 2026-09-22, per Jonathan's explicit ask —
+  this mirrors the Agilisys reference build's original purpose). Include
+  every genuinely relevant notice regardless of contract value — do NOT
+  apply any minimum-value filter; Babyzone-relevant contracts have ranged
+  from small local pieces of work up to multi-million-pound
+  delivery-partner deals, and the team wants the full range. DfE's own
+  e-tendering (run via the login-gated Jaggaer portal) is published here
+  too, per DfE's own procurement guidance — so this section already
+  covers DfE opportunities without needing separate Jaggaer access.
+  Summary should state the buyer, value (or "not stated" if genuinely
+  absent from the source — never invent a figure), and deadline. Action
+  should be concrete: "review against Babyzone's delivery capacity",
+  "flag to Fundraising lead ahead of the deadline", not a generic
+  "monitor".
 - `behind_headlines` — general early-years policy/sector news: regulation,
   workforce, cost of living, provider market changes, general DfE/MHCLG
   announcements not specifically about funding or commissioning.
