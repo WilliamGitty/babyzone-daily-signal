@@ -791,8 +791,7 @@ def render_html(
         <details class="item" data-rating="{rating_value}">
           <summary>
             <span class="kicker">{kicker}</span>
-            <h3>{headline_esc} {category_html}<span class="rating" title="Relevance">{stars}</span>
-              <span class="confidence confidence-{esc(item['confidence'])}">{esc(item['confidence'])}</span></h3>
+            <h3>{headline_esc} {category_html}<span class="rating" title="Relevance">{stars}</span></h3>
           </summary>
           {body_html}
           {watchlist_html}
@@ -814,12 +813,16 @@ def render_html(
         if i.get("top_action") and i.get("relevance_rating", 0) >= 4
     ]
     if top_action_items:
+        # <details>/<summary>, same collapse pattern as the section items
+        # below — title-only by default, expand for the why/action detail.
         top_rows = "".join(
             f'<li class="top-action-item">'
-            f'<a href="{esc(i["source_url"])}" target="_blank" rel="noopener"><strong>{esc(i["headline"])}</strong></a>'
+            f'<details><summary><strong>{esc(i["headline"])}</strong> '
+            f'<span class="owner">({esc(i.get("owner", ""))})</span></summary>'
             f'<p class="why"><strong>Why it matters:</strong> {esc(i.get("why_it_matters", ""))}</p>'
             f'<p class="action"><strong>Suggested action:</strong> {esc(i.get("suggested_action", ""))}</p>'
-            f'<span class="owner">({esc(i.get("owner", ""))})</span></li>'
+            f'<p class="source"><a href="{esc(i["source_url"])}" target="_blank" rel="noopener">Read source &rarr;</a></p>'
+            f'</details></li>'
             for i in top_action_items
         )
         top_actions_html = f'<section class="top-actions"><h2>Top actions today</h2><ul>{top_rows}</ul></section>'
@@ -841,15 +844,30 @@ def render_html(
             body = "".join(rendered)
         sections_html.append(f'<section data-section="{esc(section_key)}"><h2>{esc(title)}</h2>{body}</section>')
 
+    # Bug fix: previously no <option> was ever marked `selected`, so a
+    # browser defaults to showing the FIRST option ("Today (live)") as
+    # selected even when you're actually looking at a past drafts/ page.
+    # A native <select> only fires `onchange` when the value actually
+    # changes — so clicking "Today (live)" while it's (wrongly) already
+    # shown as selected did nothing at all. This is exactly the
+    # "can't get back to today" bug reported. Fixed by explicitly marking
+    # whichever option matches the page currently being rendered.
+    current_href = f"{date_str}.html" if asset_prefix else "index.html"
     archive_links = archive_links or []
     archive_options = "".join(
-        f'<option value="{esc(link["href"])}">{esc(link["label"])}</option>'
+        f'<option value="{esc(link["href"])}"{" selected" if link["href"] == current_href else ""}>{esc(link["label"])}</option>'
         for link in archive_links
     )
     archive_html = (
         f'<label class="archive-nav" for="archive-select">Previous editions: '
         f'<select id="archive-select" onchange="if(this.value) window.location.href=this.value;">'
         f'{archive_options}</select></label>'
+    )
+    # Also a plain, always-clickable "Today" link on drafts/ pages,
+    # independent of the <select>'s change-detection entirely — belt and
+    # braces given how the dropdown alone silently failed above.
+    today_link_html = (
+        f'<a class="today-link" href="{asset_prefix}index.html">&larr; Today (live)</a>' if asset_prefix else ""
     )
 
     return f"""<!DOCTYPE html>
@@ -867,30 +885,44 @@ def render_html(
    sans-serif for readability. Georgia stack: safe, universally available,
    no external font loading = no extra network dependency for a page that
    has to render reliably every day. */
-/* Wider max-width for a proper multi-column layout on laptop/desktop
-   (FT-style grid, ported from Agilisys) - safe for mobile because
-   max-width only ever caps width on screens wider than it. Babyzone's own
-   light-grey background kept (not Agilisys's light blue) to stay on
-   Babyzone's palette. */
-body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 15px; max-width: 1360px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #EEEEEE; }}
+/* Width scales with the viewport (96%) instead of a fixed max-width, so
+   wide/ultrawide monitors don't leave large dead margins either side -
+   the item grid below auto-adds columns as the container widens, so
+   the extra space gets used, not just left blank. A max-width is still
+   set as a sane upper bound on genuinely huge displays, not as the
+   thing driving normal desktop/laptop width the way the previous fixed
+   1360px did. Babyzone's own light-grey background kept (not Agilisys's
+   light blue) to stay on Babyzone's palette. */
+body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 15px; width: 96%; max-width: 2000px; margin: 0 auto; padding: 24px; color: #1a1a1a; background: #EEEEEE; box-sizing: border-box; }}
 header {{ border-bottom: 3px solid #212F5E; padding-bottom: 12px; margin-bottom: 24px; }}
-.header-top {{ display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }}
-.header-title {{ display: flex; align-items: center; gap: 12px; }}
+/* 3-column grid (spacer / title / actions) rather than a 2-item flex
+   row, so the title sits truly centred regardless of how wide the
+   actions block on the right is - a plain flex `space-between` can't
+   centre an item when its sibling isn't the same width. */
+.header-top {{ display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; }}
+.header-spacer {{ }}
+.header-title {{ display: flex; align-items: center; gap: 12px; justify-self: center; text-align: center; }}
 .header-title img.logo {{ width: 52px; height: 52px; }}
 header h1 {{ margin: 0; font-size: 1.6em; color: #212F5E; font-family: Georgia, 'Times New Roman', serif; }}
 .badge {{ background: #FF9C00; color: #212F5E; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; vertical-align: middle; }}
-.header-actions {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
+.header-actions {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-self: end; }}
 .header-actions button, .header-actions .archive-nav select {{
   font-family: inherit; font-size: 0.85em; border-radius: 6px; border: 1px solid #212F5E;
   background: white; color: #212F5E; padding: 6px 10px; cursor: pointer;
 }}
 .header-actions button:hover {{ background: #212F5E; color: white; }}
 .header-actions button.active {{ background: #212F5E; color: white; }}
+.today-link {{
+  font-family: inherit; font-size: 0.85em; border-radius: 6px; border: 1px solid #FF9C00;
+  background: #FF9C00; color: #212F5E; font-weight: 600; padding: 6px 10px; text-decoration: none;
+}}
+.today-link:hover {{ background: #212F5E; color: white; border-color: #212F5E; }}
 /* Stacks to a single centred column on narrow screens, ported from
    Agilisys - a wide header row gets cramped on a phone. */
 @media (max-width: 560px) {{
-  .header-top {{ flex-direction: column; align-items: flex-start; }}
-  .header-actions {{ width: 100%; justify-content: flex-start; }}
+  .header-top {{ grid-template-columns: 1fr; }}
+  .header-spacer {{ display: none; }}
+  .header-actions {{ width: 100%; justify-content: flex-start; justify-self: start; }}
 }}
 /* Rating-filter chip row, ported from Agilisys - pure client-side
    show/hide by relevance rating, same pattern as the topic filters on
@@ -922,6 +954,7 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
    and desktop). Native <details>/<summary> chosen over a custom JS
    toggle so keyboard/screen-reader behaviour comes for free. */
 .item {{ background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }}
+.item p, .top-action-item p {{ line-height: 1.65; margin: 8px 0; }}
 .item summary {{ cursor: pointer; list-style: none; }}
 .item summary::-webkit-details-marker {{ display: none; }}
 .item summary::after {{ content: '▸ Expand'; display: block; margin-top: 4px; font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 0.72em; font-weight: bold; color: #212F5E; }}
@@ -939,10 +972,6 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
 .item[data-rating="1"] {{ background: #fafafa; }}
 .item[data-rating="1"] h3 {{ font-size: 0.92em; color: #444; }}
 .rating {{ color: #d4a017; font-size: 0.85em; }}
-.confidence {{ font-size: 0.7em; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }}
-.confidence-high {{ background: #d4edda; color: #155724; }}
-.confidence-medium {{ background: #fff3cd; color: #856404; }}
-.confidence-low {{ background: #f8d7da; color: #721c24; }}
 .category {{ font-size: 0.7em; color: #555; background: #eee; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }}
 .why {{ font-style: italic; }}
 .action {{ color: #212F5E; }}
@@ -958,9 +987,14 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
 .top-actions ul {{ list-style: none; margin: 0; padding: 0; }}
 .top-action-item {{ padding: 10px 0; border-bottom: 1px solid #eee; }}
 .top-action-item:last-child {{ border-bottom: none; }}
-.top-action-item a {{ color: #212F5E; text-decoration: none; font-size: 1.02em; }}
-.top-action-item a:hover {{ text-decoration: underline; }}
-.top-action-item .why, .top-action-item .action {{ margin: 4px 0; font-size: 0.88em; }}
+.top-action-item summary {{ cursor: pointer; color: #212F5E; font-size: 1.02em; list-style: none; }}
+.top-action-item summary::-webkit-details-marker {{ display: none; }}
+.top-action-item summary::before {{ content: "▸ "; }}
+.top-action-item details[open] summary::before {{ content: "▾ "; }}
+.top-action-item summary:hover {{ text-decoration: underline; }}
+.top-action-item .source a {{ color: #212F5E; }}
+.top-action-item .why {{ margin: 10px 0 12px; font-size: 0.88em; }}
+.top-action-item .action {{ margin: 0 0 8px; font-size: 0.88em; }}
 .top-actions .owner {{ color: #666; font-size: 0.85em; }}
 .share-btn, .bookmark-btn {{
   font-family: inherit; font-size: 0.78em; font-weight: bold; display: inline-block;
@@ -1002,6 +1036,7 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
 <body>
 <header>
   <div class="header-top">
+    <div class="header-spacer" aria-hidden="true"></div>
     <div class="header-title">
       <img class="logo" src="{asset_prefix}icon.png" alt="Babyzone logo">
       <div>
@@ -1010,6 +1045,7 @@ section h2 {{ border-bottom: 1px solid #ccc; padding-bottom: 6px; color: #212F5E
       </div>
     </div>
     <div class="header-actions">
+      {today_link_html}
       <button type="button" id="bookmarks-toggle" onclick="bzToggleBookmarksPanel()">★ Bookmarks</button>
       {archive_html}
     </div>
