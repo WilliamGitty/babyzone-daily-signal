@@ -41,6 +41,13 @@ jobs:
       - name: Generate today's edition
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # A manual (workflow_dispatch) run always means "I want a fresh
+          # regenerate right now" - e.g. after a template/CSS change, where
+          # the idempotency guard would otherwise skip the run entirely
+          # since today's drafts/{date}.html already exists and the guard
+          # has no way to know only the template changed, not the content.
+          # Scheduled runs keep the normal idempotent behaviour untouched.
+          FORCE_REGENERATE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
         run: python generate.py
 
       - name: Commit generated files
